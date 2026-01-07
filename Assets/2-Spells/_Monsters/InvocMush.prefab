@@ -1,0 +1,256 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2921399738631722125
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7677504796890999188}
+  - component: {fileID: 4417367031926777037}
+  - component: {fileID: 3573026063903416054}
+  - component: {fileID: 271540999640829321}
+  - component: {fileID: 7180332819718383395}
+  - component: {fileID: -61265066829527745}
+  m_Layer: 10
+  m_Name: InvocMush
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7677504796890999188
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2921399738631722125}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4417367031926777037
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2921399738631722125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e9064c37b8d79a4592aeb1846d0585f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spellName: InvocMush
+  isAutoAttack: 0
+  spellOrder: 0
+  spellType: 0
+  aoeCircle: {fileID: 0}
+  spellRange: 20
+  spellDamage: 0
+  spellDamageOnce: 1
+  spellDamagePerSecond: 0
+  spellCooldown: 30
+  durationWhileCancelAvailable: 0
+  followCaster: 1
+  followRotationCaster: 1
+  durationBeforeDestroy: 2
+  durationBeforeEffect: 0.2
+  isAnimationParameter: 0
+  durationBeforeRemoveParameter: 0
+  isAnimationPlay: 1
+  animationName: chargemush
+  spellPriority: 0
+  spellPrioritySeconds: 1
+  castPrefab: {fileID: 0}
+  targetPrefab: {fileID: 0}
+  castPosition: 0
+  isMovementOff: 0
+  blockMoveSeconds: 0
+  isProjectilePosition: 0
+  pushFrontSeconds: 0
+  pushFrontPower: 0
+  pushBackSeconds: 0
+  pushBackPower: 1
+  pushJumpSeconds: 0
+  pushJumpPower: 0
+  pushDownSeconds: 0
+  pushDownPower: 0
+  launchEffectToNewPosition: 0
+  pushTargetFrontSeconds: 0
+  pushTargetFrontPower: 0
+  pushTargetBackSeconds: 0
+  pushTargetBackPower: 5
+  pushTargetJumpSeconds: 0
+  pushTargetJumpPower: 0
+  pushTargetDownSeconds: 0
+  pushTargetDownPower: 0
+  targetInAirSeconds: 0
+  casterInAirSeconds: 0
+  stunSeconds: 0
+  freezeSeconds: 0
+  sleepSeconds: 0
+  paraSeconds: 0
+  stunAirSeconds: 0
+  movementSpeedFactor: 1
+  movementSpeedSeconds: 0
+  jumpHeightFactor: 1
+  jumpHeightSeconds: 0
+  keepTargetBehind: {x: 0, y: 0, z: 0}
+  targetBehind: []
+  invincibleTime: 0
+  destroySpellIfStun: 0
+  spawnThisInsideTrigger:
+  - {fileID: 7489489809042174427, guid: c6ddf5756595cf1468c3ca695bc57bc8, type: 3}
+  - {fileID: 7489489809042174427, guid: c6ddf5756595cf1468c3ca695bc57bc8, type: 3}
+  spawnedObjects: []
+  isCancel: 0
+  buttonName: 
+  avatar: {fileID: 0}
+--- !u!65 &3573026063903416054
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2921399738631722125}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 1
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 8.5199995, y: 1.576456, z: 7.909378}
+  m_Center: {x: 0, y: 0.45685655, z: 1.6931028}
+--- !u!114 &271540999640829321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2921399738631722125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 435cdbe4c110b074fa5c9cc55f1cef51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  useTouchedRaycastAndNotTrigger: 0
+  spell: {fileID: 0}
+  zoneCollider: {fileID: 3573026063903416054}
+--- !u!54 &7180332819718383395
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2921399738631722125}
+  serializedVersion: 2
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!82 &-61265066829527745
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2921399738631722125}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 8300000, guid: 1745c224da8beff4ead40a80b2504af8, type: 3}
+  m_PlayOnAwake: 1
+  m_Volume: 0.9
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4

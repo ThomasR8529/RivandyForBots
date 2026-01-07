@@ -1,0 +1,30 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+
+# Visual Studio / VSCode
+.vscode/
+*.csproj
+*.sln
+*.user
+*.userprefs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Steam
+steam_appid.txt
+
+# Crash reports
+sysinfo.txt
+
+# Unity meta exception
+!Assets/**/*.meta
+!Packages/**/*.meta
+!ProjectSettings/**/*.meta
