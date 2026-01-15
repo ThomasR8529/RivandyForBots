@@ -9,6 +9,9 @@ using RealToon.Script;
 public class PlayerClasses : NetworkBehaviour
 {
 
+    public CombatMonster combatMonster;
+    public PhysicsMonster physicsMonster;
+
     public GameObject deathEffect;
 
     public GameObject warriorMesh;

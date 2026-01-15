@@ -11,6 +11,8 @@ using UnityEngine.InputSystem;
 public class PlayerMovement : NetworkBehaviour
 {
 
+    public Follow follow;
+
     [Header("Movements")]
     public Rigidbody rb;
     public Transform cameraJoueur;

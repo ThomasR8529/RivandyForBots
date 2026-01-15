@@ -309,8 +309,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 514912841189882668}
-  - component: {fileID: 146472914066914599}
   - component: {fileID: 8147118876956247521}
+  - component: {fileID: 6686790731797697215}
+  - component: {fileID: 595412577456775227}
+  - component: {fileID: 1795544230411324606}
   m_Layer: 0
   m_Name: Follow
   m_TagString: Untagged
@@ -333,40 +335,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 5280019928895595720}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &146472914066914599
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 308324040437833495}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 53eb3d903094d004baa7b276014437d8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  agent: {fileID: -5768836939183544513}
-  isDead: 0
-  cibleur: {fileID: 4763456844133369728}
-  doBackward: 0
-  targetableLayers:
-    serializedVersion: 2
-    m_Bits: 648
-  cible: {fileID: 0}
-  defendTarget: {fileID: 0}
-  timeBetweenSpells: 1
-  timeBetweenAutoAttacks: 2
-  lastTimeSpellUsed: 0
-  defaultPosition: {x: 0, y: 0, z: 0}
-  rotationSpeed: 6
-  maxSpellRange: 50
-  isInBlockMove: 0
-  billboardEntity: {fileID: 0}
-  twitchName: 
-  blockCast: 0
-  retreatThresholdRatio: 1
-  approachThresholdRatio: 0
-  waitBeforeNormalState: 0.3
 --- !u!136 &8147118876956247521
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -390,6 +358,69 @@ CapsuleCollider:
   m_Height: 1
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6686790731797697215
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 308324040437833495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b116cdcb853826a4089a4625afb3f269, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  timeBetweenSpells: 2.5
+  timeBetweenAutoAttacks: 2
+  retreatThresholdRatio: 0.85
+  approachThresholdRatio: 1.15
+  lastTimeSpellUsed: 0
+  maxSpellRange: 50
+  blockCast: 0
+--- !u!114 &595412577456775227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 308324040437833495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b7822040255c9240a1191e525f6cb3b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  isInBlockMove: 0
+  originalStoppingDistance: 0
+  waitBeforeNormalState: 0.3
+--- !u!114 &1795544230411324606
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 308324040437833495}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb731463a350c584085e163d9a6cfb25, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  CombatMonster: {fileID: 0}
+  physicsMonster: {fileID: 0}
+  agent: {fileID: -5768836939183544513}
+  monsterReference: {fileID: -3379511557872390653}
+  isDead: 0
+  cibleur: {fileID: 0}
+  doBackward: 0
+  targetableLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  cible: {fileID: 0}
+  defendTarget: {fileID: 0}
+  defaultPosition: {x: 0, y: 0, z: 0}
+  rotationSpeed: 6
+  billboardEntity: {fileID: 0}
+  twitchName: 
+  originalStoppingDistance: 0
 --- !u!1 &403731580798020163
 GameObject:
   m_ObjectHideFlags: 0
@@ -4201,6 +4232,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4da9efb0bb8bbbd4aadd440290788323, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  follow: {fileID: 0}
   rb: {fileID: 0}
   cameraJoueur: {fileID: 0}
   cameraMinimap: {fileID: 0}
@@ -4289,6 +4321,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e04a2c14e04c19b4da965c59eaffcc23, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  combatMonster: {fileID: 0}
+  physicsMonster: {fileID: 0}
   deathEffect: {fileID: 1171190231128718, guid: e6fc60f718f8be2438945a707eba7e04,
     type: 3}
   warriorMesh: {fileID: 0}
@@ -4302,7 +4336,7 @@ MonoBehaviour:
   kyrenMesh: {fileID: 0}
   mafaldaMesh: {fileID: 0}
   animator: {fileID: 7038885152778659517}
-  follow: {fileID: 146472914066914599}
+  follow: {fileID: 0}
   autoAttacks:
   - {fileID: 0}
   spells:
@@ -4396,6 +4430,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 01838aa72ea690c4fb5903e03ffcbe88, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  combatMonster: {fileID: 0}
+  physicsMonster: {fileID: 0}
   playerShooting: {fileID: 0}
   playerClasses: {fileID: 0}
   playerStatistics: {fileID: 0}

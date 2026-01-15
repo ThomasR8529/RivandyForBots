@@ -1279,8 +1279,8 @@ public class PlayerShooting : NetworkBehaviour
         }
         else if (releasedEffects && classInfo.isMonster && playerReference.follow != null)
         {
-            playerReference.follow.isInBlockMove = false;
-            playerReference.follow.blockCast = false;
+            playerReference.follow.physicsMonster.isInBlockMove = false;
+            playerReference.follow.CombatMonster.blockCast = false;
         }
     }
 
@@ -1596,7 +1596,7 @@ public class PlayerShooting : NetworkBehaviour
         {
             if (playerReference.follow != null)
             {
-                playerReference.follow.isInBlockMove = true;
+                playerReference.follow.physicsMonster.isInBlockMove = true;
             }
         }
 
@@ -1611,7 +1611,7 @@ public class PlayerShooting : NetworkBehaviour
         {
             if (playerReference.follow != null)
             {
-                playerReference.follow.isInBlockMove = false;
+                playerReference.follow.physicsMonster.isInBlockMove = false;
             }
         }
     }
@@ -1624,7 +1624,7 @@ public class PlayerShooting : NetworkBehaviour
         }
         else
         {
-            playerReference.follow.blockCast = true;
+            playerReference.follow.CombatMonster.blockCast = true;
         }
         yield return new WaitForSeconds(spell.blockCastingSpellsSeconds);
         if (!classInfo.isMonster)
@@ -1634,7 +1634,7 @@ public class PlayerShooting : NetworkBehaviour
         }
         else
         {
-            playerReference.follow.blockCast = false;
+            playerReference.follow.CombatMonster.blockCast = false;
         }
         //OLD: mouvementJoueur.SetBlockMove(false);
     }
@@ -1705,7 +1705,7 @@ public class PlayerShooting : NetworkBehaviour
 
         Vector3 pushDirection = casterRef.transform.rotation * pushType.pushPower;
         // Appelle la coroutine `Push` déjà existante dans Follow
-        casterRef.follow.TriggerPush(pushDirection, duration);
+        casterRef.follow.physicsMonster.TriggerPush(pushDirection, duration);
     }
     IEnumerator PushPlayer(PushType pushType, int index, PlayerClasses casterClass, Spell spell)
     {
@@ -1860,8 +1860,8 @@ public class PlayerShooting : NetworkBehaviour
         }
         else if (playerReference.follow != null)
         {
-            playerReference.follow.blockCast = false;
-            playerReference.follow.isInBlockMove = false;
+            playerReference.follow.CombatMonster.blockCast = false;
+            playerReference.follow.physicsMonster.isInBlockMove = false;
         }
     }
 

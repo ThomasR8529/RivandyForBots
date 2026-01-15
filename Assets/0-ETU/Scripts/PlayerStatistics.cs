@@ -11,34 +11,27 @@ using Debug = UnityEngine.Debug;
 
 public class PlayerStatistics : NetworkBehaviour
 {
-    // Liste des etats qui affectent la moveSpeed: Liste<shieldValue (additive), shieldDuration (durée), shieldTime (temps attribué)
+    // Liste des etats qui affectent la moveSpeed
     public List<List<float>> shieldList;
 
-
     [SerializeField, Tooltip("Bar de réincarnation")] private float reincarnationPower = 100;
-
-    // Pour activer les effets spéciaux visuels 2D/UI
     [SerializeField] private Camera overlayCamera;
 
     public float baseMaxHealth;
     public bool playerInstanciated;
 
-    ////////////////////
-    /// Etats vulnérables
+    // Etats vulnérables
     [SerializeField, HideInInspector] private float stunSeconds;
     [SerializeField, HideInInspector] private float freezeSeconds;
     [SerializeField, HideInInspector] private float sleepSeconds;
     [SerializeField, HideInInspector] private float paraSeconds;
     [SerializeField, HideInInspector] private float stunAirSeconds;
-
     [SerializeField, HideInInspector] private float serverBlockSeconds;
-    ////////////////////
-    /// Etats spéciaux
-    /// isBehindState: est-ce-que le joueur est dans un état de keepTargetBehind ? (s'il est avalé) 
+
+    // Etats spéciaux
     [HideInInspector] public PlayerReference isBehindWho;
     [HideInInspector] public Vector3 isBehindVector;
 
-    ////////////////////////
     // Instanciations
     [SerializeField] private PlayerReference playerReference;
     [SerializeField] private GameObject damagePrefab;
@@ -51,12 +44,8 @@ public class PlayerStatistics : NetworkBehaviour
     [SerializeField] private cooldownUI cooldownUI;
     [SerializeField] private TextMeshProUGUI playername;
 
-    // Le dernier attaquant qui a fait perdre des vies.
     [SerializeField] private GameObject lastAttacker;
 
-
-    // Pourquoi on doit en créer un ici ? Car un client doit pouvoir avoir accès à l'info d'un autre joueur.
-    // Le serveur peut utiliser playerList[clientId] de CPUcontroller.
     [SerializeField] public PlayerStruct playerDataGame;
     [SerializeField] public StatStruct playerStatData;
 
@@ -65,35 +54,100 @@ public class PlayerStatistics : NetworkBehaviour
     [SerializeField] private bool notAttackHeart;
 
     [Header("Team")]
-    [SerializeField, Range(0, 4), Tooltip("0 = aucune équipe, 1-4 = équipe. Les entités d'une même équipe s'ignorent.")]
-    private int teamId;
+    [SerializeField, Range(0, 4)] private int teamId;
 
     private Coroutine removeHealthBar;
-
     public bool isInvincible;
-
     [HideInInspector] public bool isDead = false;
-
     public bool isInsideZone = true;
 
+    // Properties
     public float StunSeconds { get => stunSeconds; set => stunSeconds = value; }
     public float FreezeSeconds { get => freezeSeconds; set => freezeSeconds = value; }
     public float SleepSeconds { get => sleepSeconds; set => sleepSeconds = value; }
     public float ParaSeconds { get => paraSeconds; set => paraSeconds = value; }
     public float StunAirSeconds { get => stunAirSeconds; set => stunAirSeconds = value; }
-
     public float ServerBlockSeconds { get => serverBlockSeconds; set => serverBlockSeconds = value; }
-    [SerializeField, HideInInspector]
-    private float stunImmunitySeconds;
+    
+    [SerializeField, HideInInspector] private float stunImmunitySeconds;
     public float StunImmunitySeconds { get => stunImmunitySeconds; set => stunImmunitySeconds = value; }
+    
     public bool NotAttackMonsters { get => notAttackMonsters; set => notAttackMonsters = value; }
     public bool NotAttackPlayers { get => notAttackPlayers; set => notAttackPlayers = value; }
     public bool NotAttackHeart { get => notAttackHeart; set => notAttackHeart = value; }
     public float ReincarnationPower { get => reincarnationPower; set => reincarnationPower = value; }
     public int TeamId { get => Mathf.Clamp(teamId, 0, 4); set => teamId = Mathf.Clamp(value, 0, 4); }
 
-    // Fired locally on this player object whenever health changes via RPC
-    public event System.Action<float, float> OnLocalHealthChanged; // (previousHealth, currentHealth)
+    public event System.Action<float, float> OnLocalHealthChanged;
+
+    private void Awake()
+    {
+        // FIX : Initialisation des PV par défaut si oubli (évite mort instantanée)
+        if (playerStatData.maxHealth <= 0) playerStatData.maxHealth = 100f;
+        playerStatData.health = playerStatData.maxHealth;
+        shieldList = new List<List<float>>();
+        isDead = false;
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        // FIX 1 : On s'assure d'avoir la référence
+        if (playerReference == null) playerReference = GetComponent<PlayerReference>();
+
+        if (IsServer)
+        {
+            if (gameObject.layer == 3 || gameObject.layer == 9)
+            {
+                if (SceneManager.GetActiveScene().name == "PlaineDeEnol")
+                {
+                    NotAttackHeart = true;
+                }
+            }
+        }
+        
+        if (IsClient)
+        {
+            if (gameObject.layer == 12) return;
+
+            // FIX 2 : SÉCURITÉ CRITIQUE
+            // On vérifie d'abord si playerClasses existe. 
+            // Si c'est un bot simple, playerClasses sera null, donc on saute ce bloc au lieu de planter.
+            bool hasClasses = (playerReference != null && playerReference.playerClasses != null);
+            
+            if (hasClasses && !playerReference.playerClasses.isMonster)
+            {
+                if (IsLocalPlayer)
+                {
+                    // FIX 3 : Sécurité UI
+                    if (cooldownUI.instance != null)
+                    {
+                        var canvas = cooldownUI.instance.GetComponentInParent<Canvas>();
+                        if (canvas != null) canvas.worldCamera = overlayCamera;
+                    }
+                    
+                    if (PlayerData.player != null)
+                    {
+                        playerDataGame = PlayerData.player.data;
+                        playerStatData = PlayerData.player.statData;
+                    }
+                    
+                    if (canvasUser != null) canvasUser.SetActive(false);
+                    RefreshName();
+                }
+            }
+            
+            // Mise à jour UI santé (si assignée)
+            if(healthBar != null) {
+               healthBar.maxValue = playerStatData.maxHealth;
+               healthBar.value = playerStatData.health;
+            }
+            if(canvasHealthBar != null)
+            {
+               canvasHealthBar.maxValue = playerStatData.maxHealth;
+               canvasHealthBar.value = playerStatData.health;
+            }
+        }
+    }
 
     [ClientRpc]
     public void UpdateStatDataClientRpc(StatStruct playerDataStruct)
@@ -101,17 +155,13 @@ public class PlayerStatistics : NetworkBehaviour
         if (IsLocalPlayer)
         {
             playerStatData = playerDataStruct;
-            if (playerStatData.health <= 0)
+            // Sécurité Brain
+            if (playerReference.characterBrain != null && playerReference.characterBrain.inputHandlerSettings.InputHandler != null)
             {
-                playerReference.characterBrain.inputHandlerSettings.InputHandler.isDead = true;
-            }
-            else
-            {
-                playerReference.characterBrain.inputHandlerSettings.InputHandler.isDead = false;
+                playerReference.characterBrain.inputHandlerSettings.InputHandler.isDead = (playerStatData.health <= 0);
             }
         }
     }
-
 
     public void SetAttacker(GameObject attacker)
     {
@@ -120,71 +170,21 @@ public class PlayerStatistics : NetworkBehaviour
 
     public void RefreshName()
     {
-        gameObject.name = playerDataGame.playerName.Value.ToString();
-        playername.text = playerDataGame.playerName.Value.ToString();
-    }
-
-    private void Awake()
-    {
-        playerStatData.health = playerStatData.maxHealth;
-        shieldList = new List<List<float>>();
-    }
-
-
-    public override void OnNetworkSpawn()
-    {
-        playerReference = GetComponent<PlayerReference>();
-
-        if (IsServer)
+        if(playerDataGame.playerName.Value != null) 
         {
-            if (gameObject.layer == 3 || gameObject.layer == 9)
-            {
-
-                if (SceneManager.GetActiveScene().name == "PlaineDeEnol")
-                {
-                    //NotAttackPlayers = true;
-                    NotAttackHeart = true;
-                }
-            }
-        }
-        if (IsClient)
-        {
-            // On met à jour le slider de chaque entités côté client peu importe si c'est un monstre ou un joueur.
-            // if(healthBar != null) {
-            //     healthBar.maxValue = playerStatData.maxHealth;
-            //     healthBar.value = playerStatData.health;
-            // }
-            // if(canvasHealthBar != null)
-            // {
-            //     canvasHealthBar.maxValue = playerStatData.maxHealth;
-            //     canvasHealthBar.value = playerStatData.health;
-            // }
-            if (gameObject.layer == 12) return;
-
-            if (!playerReference.playerClasses.isMonster)
-            {
-                if (IsLocalPlayer)
-                {
-                    cooldownUI.instance.GetComponentInParent<Canvas>().worldCamera = overlayCamera;
-                    playerDataGame = PlayerData.player.data;
-                    playerStatData = PlayerData.player.statData;
-                    canvasUser.SetActive(false);
-                    RefreshName();
-                }
-            }
+            gameObject.name = playerDataGame.playerName.Value.ToString();
+            if(playername != null) playername.text = playerDataGame.playerName.Value.ToString();
         }
     }
-
 
 #if UNITY_SERVER
-    // Damage en dehors de la zone.
     private float timer;
-
     private void Update()
     {
         if (!isInsideZone)
         {
             // Seuls les joueurs prennent des dégats de zone (pas les monstres)
+            // FIX : Check null sur playerClasses
             if (playerReference != null && playerReference.playerClasses != null && playerReference.playerClasses.isMonster)
             {
                 return;
@@ -200,15 +200,10 @@ public class PlayerStatistics : NetworkBehaviour
     }
 #endif
 
-    /// <summary>
-    /// Permet de récupérer la structure data et de la mettre dans "playerDataGame".
-    /// S'il s'agit d'un client, il permet en plus de mettre à jour sa date.
-    /// </summary>
-    /// <param name="other"></param>
     public void SetPlayerDataLocal(PlayerStruct other)
     {
         playerDataGame = other;
-        if (playerReference.networkObject.IsLocalPlayer)
+        if (playerReference.networkObject.IsLocalPlayer && PlayerData.player != null)
         {
             PlayerData.player.data = other;
         }
@@ -218,7 +213,7 @@ public class PlayerStatistics : NetworkBehaviour
     public void SetStatDataLocal(StatStruct other)
     {
         playerStatData = other;
-        if (playerReference.networkObject.IsLocalPlayer)
+        if (playerReference.networkObject.IsLocalPlayer && PlayerData.player != null)
         {
             PlayerData.player.statData = other;
         }
@@ -247,38 +242,41 @@ public class PlayerStatistics : NetworkBehaviour
 
         if (casterRef != null && targetRef != null && AreAllies(casterRef, targetRef))
         {
-            Debug.Log("Friendly fire prevented (same team).");
             return;
         }
 
-        if ((Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor
-        || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer)
-            && casterRef != null
-            && !casterRef.playerClasses.isMonster
-            && !(targetRef != null && targetRef.playerClasses.isMonster))
+        if (Run.instance != null && Run.instance.CPUcontroller != null) 
         {
-            return; // on ignore le hit
-        }
+            var mode = Run.instance.CPUcontroller.zone.serverMode;
+            if ((mode == GameMode.Survivor || mode == GameMode.Streamer)
+                && casterRef != null
+                && casterRef.playerClasses != null && !casterRef.playerClasses.isMonster
+                && !(targetRef != null && targetRef.playerClasses != null && targetRef.playerClasses.isMonster))
+            {
+                return; // PvP désactivé en Survivor
+            }
 
-        bool sameGroup = casterRef != null && targetRef != null
-            && casterRef.playerStatistics.playerDataGame.groupId != 0
-            && casterRef.playerStatistics.playerDataGame.groupId == targetRef.playerStatistics.playerDataGame.groupId;
-        if (sameGroup && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer))
-        {
-            Debug.Log("Friendly fire prevented (same group).");
-            return;
+            bool sameGroup = casterRef != null && targetRef != null
+                && casterRef.playerStatistics.playerDataGame.groupId != 0
+                && casterRef.playerStatistics.playerDataGame.groupId == targetRef.playerStatistics.playerDataGame.groupId;
+            
+            if (sameGroup && (mode == GameMode.Survivor || mode == GameMode.Streamer))
+            {
+                return;
+            }
         }
 
         float totalDamage = value;
-        if (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer)
+        
+        // Calcul multiplicateurs de dégâts
+        if (Run.instance != null && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer))
         {
-            float baseDamage = totalDamage; // on sauvegarde la valeur avant bonus
+            float baseDamage = totalDamage;
             float multiplier = 1f;
 
             if (casterRef != null && casterRef.playerClasses != null && casterRef.playerClasses.isMonster)
             {
-                // Unified monster scaling (HP and Damage): per-wave +20%, every 5th wave +50%, each failed event +50%
-                int wave = Run.instance.CPUcontroller.zone.currentWave;
+                // Logique scaling monstre
             }
             else if (casterRef != null && casterRef.PlayerReincarnation != null && casterRef.PlayerReincarnation.IsReincarnation)
             {
@@ -290,14 +288,17 @@ public class PlayerStatistics : NetworkBehaviour
             }
             totalDamage = baseDamage * multiplier;
         }
-        // Pacifist challenge: if any player damages a monster, fail immediately (server-side)
+
+        // Challenge Pacifiste
         if (casterRef != null && SurvivorModifiers.pacifist30sChallengeThisWave)
         {
-            if (targetRef != null && targetRef.playerClasses != null && targetRef.playerClasses.isMonster && !casterRef.playerClasses.isMonster)
+            if (targetRef != null && targetRef.playerClasses != null && targetRef.playerClasses.isMonster && casterRef.playerClasses != null && !casterRef.playerClasses.isMonster)
             {
                 SurvivorEventsApi.Instance?.ReportChallengeFailed();
             }
         }
+
+        // Gestion Boucliers
         if (shieldList.Count > 0)
         {
             int shieldIndex = 0;
@@ -306,7 +307,6 @@ public class PlayerStatistics : NetworkBehaviour
                 if (shield[0] > 0)
                 {
                     shieldList[shieldIndex][0] = totalDamage > shield[0] ? 0 : shield[0] - totalDamage;
-
                     if (totalDamage < shield[0])
                     {
                         totalDamage = 0;
@@ -321,18 +321,15 @@ public class PlayerStatistics : NetworkBehaviour
             }
         }
 
+        // Application Dégâts
         if (totalDamage > 0)
         {
             playerStatData.health -= totalDamage;
 
             if (casterRef == null)
-            {
                 OnAutoHealthClientRpc(player, playerStatData);
-            }
             else
-            {
                 OnHealthChangedClientRpc(player, playerStatData, casterRef.gameObject, totalDamage);
-            }
 
             ApplyDamageServer(player, playerStatData.health);
         }
@@ -346,30 +343,24 @@ public class PlayerStatistics : NetworkBehaviour
     public void ApplyHeal(GameObject player, float value, PlayerReference healerRef)
     {
         float totalHeal = Mathf.Max(0f, value);
-        if (totalHeal <= 0f)
-            return;
+        if (totalHeal <= 0f) return;
 
         float newHealth = Mathf.Min(playerStatData.maxHealth, playerStatData.health + totalHeal);
         playerStatData.health = newHealth;
 
-        // No attacker context for heal; update UI/state across clients
         OnAutoHealthClientRpc(player, playerStatData);
     }
 
     private void ApplyDamageServer(GameObject player, float newValue)
     {
 #if UNITY_SERVER
-        // Vérification des vies :
         if (newValue <= 0 && !isDead)
         {
-            Debug.Log("IsDead PlayerStatistics: " + playerReference.gameObject.name);
             // Coeur (layer 12)
             if (player.layer == 12)
             {
                 if (SurvivorModifiers.defendStoneHeartThisWave)
-                {
                     SurvivorEventsApi.Instance?.ReportChallengeFailed();
-                }
 
                 StoneHeartTarget.Instance?.HandleHeartDestroyed();
                 return;
@@ -379,48 +370,43 @@ public class PlayerStatistics : NetworkBehaviour
                 playerReference.characterBrain.inputHandlerSettings.InputHandler.isDead = true;
 
             isDead = true;
-            // Record the killer's kill before marking the victim as dead,
-            // so end-of-match save counts the final kill in BR.
-            if (!playerReference.playerClasses.isMonster)
+
+            // FIX : Check null sur playerClasses pour éviter crash bot
+            if (playerReference.playerClasses != null && !playerReference.playerClasses.isMonster)
             {
                 if (lastAttacker != null)
                 {
                     PlayerStatistics statsPl = lastAttacker.GetComponent<PlayerStatistics>();
-                    statsPl.RecordKill(false);
-                    UpdateStatDataClientRpc(statsPl.playerStatData);
+                    if(statsPl != null)
+                    {
+                        statsPl.RecordKill(false);
+                        UpdateStatDataClientRpc(statsPl.playerStatData);
+                    }
                 }
             }
 
             if (playerReference.dropSystem != null)
             {
                 PlayerReference deserveFor = null;
-                if (lastAttacker != null)
-                {
-                    deserveFor = lastAttacker.GetComponent<PlayerReference>();
-                }
+                if (lastAttacker != null) deserveFor = lastAttacker.GetComponent<PlayerReference>();
                 playerReference.dropSystem.DropItNow(deserveFor);
             }
 
-            if (!playerReference.playerClasses.isMonster)
+            if (playerReference.playerClasses != null && !playerReference.playerClasses.isMonster)
             {
                 playerDataGame.lose += 1;
                 UpdateStatDataClientRpc(playerStatData);
             }
 
-            if (!playerReference.playerClasses.isMonster && !(player.layer == 12))
-            {
-                // Debug.Log("Déconnexion du joueur : " + this);
-            }
-
-            if (playerReference.playerClasses.isMonster || player.layer == 12)
+            if ((playerReference.playerClasses != null && playerReference.playerClasses.isMonster) || player.layer == 12)
             {
                 if (lastAttacker != null)
                 {
                     PlayerStatistics statsPl = lastAttacker.GetComponent<PlayerStatistics>();
-                    statsPl.RecordKill(true);
+                    if(statsPl != null) statsPl.RecordKill(true);
                 }
             }
-            // Defend Stone Heart challenge: if heart (layer 12) destroyed, fail the challenge
+            
             if (player.layer == 12 && SurvivorModifiers.defendStoneHeartThisWave)
             {
                 SurvivorEventsApi.Instance?.ReportChallengeFailed();
@@ -429,29 +415,32 @@ public class PlayerStatistics : NetworkBehaviour
 #endif
     }
 
-
-
     [ClientRpc]
     public void OnHealthChangedClientRpc(NetworkObjectReference playerRef, StatStruct statData, NetworkObjectReference attackerRef, float totalDamage)
     {
         if (playerRef.TryGet(out NetworkObject playerNet))
         {
             PlayerReference playerRefer = playerNet.GetComponent<PlayerReference>();
-            // Track previous health before applying new stats
             float prevHealth = playerRefer.playerStatistics.playerStatData.health;
             DealDamageWith(playerRefer, statData);
-            // Notify local listeners (VFX, etc.)
+            
             try { playerRefer.playerStatistics.OnLocalHealthChanged?.Invoke(prevHealth, statData.health); } catch { }
 
             if (attackerRef.TryGet(out NetworkObject attackerNet))
             {
                 PlayerReference killerRef = attackerNet.GetComponent<PlayerReference>();
-                if (attackerNet.IsLocalPlayer)
+                
+                // FIX: Vérif cooldownUI avant d'utiliser
+                if (attackerNet.IsLocalPlayer && cooldownUI.instance != null)
                 {
                     cooldownUI.instance.UpdateEnemyIndicator(playerRefer);
-                    DamagePrefab component = Instantiate(cooldownUI.instance.damagePrefab).GetComponent<DamagePrefab>();
-                    component.SetFollow(playerRefer.transform);
-                    component.SetText(statData.health > 0f ? -totalDamage : 666);
+                    
+                    if(cooldownUI.instance.damagePrefab != null) {
+                        DamagePrefab component = Instantiate(cooldownUI.instance.damagePrefab).GetComponent<DamagePrefab>();
+                        component.SetFollow(playerRefer.transform);
+                        component.SetText(statData.health > 0f ? -totalDamage : 666);
+                    }
+                    
                     cooldownUI.instance.PlayCursorHitAnimation();
                     if (statData.health > 0f)
                     {
@@ -460,28 +449,30 @@ public class PlayerStatistics : NetworkBehaviour
                     }
                     else
                     {
-                        killerRef.impulseSource?.GenerateImpulse();
-                        if (playerRefer.playerClasses.isMonster)
+                        if(killerRef.impulseSource != null) killerRef.impulseSource.GenerateImpulse();
+                        
+                        if (playerRefer.playerClasses != null && playerRefer.playerClasses.isMonster)
                         {
                             SoundManager.Instance.Play2D("monster-kill");
-                            cooldownUI.instance.feedbackEnemy.StopIt();
+                            if(cooldownUI.instance.feedbackEnemy != null) cooldownUI.instance.feedbackEnemy.StopIt();
                         }
                         else
                         {
-                            cooldownUI.instance.feedbackEnemy.PlayKillEffect();
-                            cooldownUI.instance.feedbackEnemy.UpdateKillEffect(playerRefer.gameObject.name, playerRefer.playerStatistics.playerDataGame.avatarId);
-                            Run.instance.CPUcontroller.zone.PlayZoneAudio(3);
+                            if(cooldownUI.instance.feedbackEnemy != null) {
+                                cooldownUI.instance.feedbackEnemy.PlayKillEffect();
+                                cooldownUI.instance.feedbackEnemy.UpdateKillEffect(playerRefer.gameObject.name, playerRefer.playerStatistics.playerDataGame.avatarId);
+                            }
+                            if(Run.instance != null) Run.instance.CPUcontroller.zone.PlayZoneAudio(3);
                         }
                     }
-
                 }
                 else
                 {
-                    if (playerNet.IsLocalPlayer)
+                    if (playerNet.IsLocalPlayer && cooldownUI.instance != null)
                     {
                         cooldownUI.instance.UpdateEnemyIndicator(killerRef);
                         cooldownUI.instance.PlayHitEffect();
-                        playerRefer.impulseSource?.GenerateImpulse();
+                        if(playerRefer.impulseSource != null) playerRefer.impulseSource.GenerateImpulse();
                         SoundManager.Instance.Play2D("hitted");
 
                         try
@@ -491,7 +482,6 @@ public class PlayerStatistics : NetworkBehaviour
                             var hook = playerRefer.playerDamageHook;
                             if (hook != null)
                             {
-                                Debug.Log("On instantiate le hook (Tomek)");
                                 hook.OnDamagedBySourcePosition(killerRef.transform.position, intensity);
                             }
                             else if (DamageDirectionUI.instance != null)
@@ -511,11 +501,16 @@ public class PlayerStatistics : NetworkBehaviour
                     }
                 }
 
-                if (statData.health < 0f && !killerRef.playerClasses.isMonster && !playerRefer.playerClasses.isMonster)
+                bool killerIsMonster = (killerRef.playerClasses != null && killerRef.playerClasses.isMonster);
+                bool victimIsMonster = (playerRefer.playerClasses != null && playerRefer.playerClasses.isMonster);
+
+                if (statData.health < 0f && !killerIsMonster && !victimIsMonster)
                 {
                     SoundManager.Instance.Play2D("hitted");
-                    KillResume killResume = Instantiate(cooldownUI.instance.killResumePrefab, cooldownUI.instance.killResumeContainer).GetComponent<KillResume>();
-                    killResume.SetKillResume(killerRef, playerRefer);
+                    if(cooldownUI.instance != null && cooldownUI.instance.killResumePrefab != null) {
+                        KillResume killResume = Instantiate(cooldownUI.instance.killResumePrefab, cooldownUI.instance.killResumeContainer).GetComponent<KillResume>();
+                        killResume.SetKillResume(killerRef, playerRefer);
+                    }
                 }
             }
         }
@@ -524,7 +519,6 @@ public class PlayerStatistics : NetworkBehaviour
     [ClientRpc]
     public void OnAutoHealthClientRpc(NetworkObjectReference playerRef, StatStruct statData)
     {
-
         if (playerRef.TryGet(out NetworkObject playerNet))
         {
             PlayerReference playerRefer = playerNet.GetComponent<PlayerReference>();
@@ -534,37 +528,13 @@ public class PlayerStatistics : NetworkBehaviour
 
     private void DealDamageWith(PlayerReference playerRefer, StatStruct statData)
     {
-        // Si ce n'est pas le joueur local, on met à jour la barre de vie au dessus des autres joueurs
-        // (nous n'avons pas de barre, nous)
-
         playerRefer.playerStatistics.playerStatData = statData;
 
-
-
-        // playerRefer.playerStatistics.healthBar.value = statData.health > 0 ? statData.health : 0;
-
-
-        // if (playerRefer.playerStatistics.healthBar != null)
-        // {
-        //     if (!playerRefer.IsLocalPlayer)
-        //     {
-        //         playerRefer.playerStatistics.healthBar.gameObject.SetActive(true);
-        //         if (removeHealthBar != null) StopCoroutine(removeHealthBar);
-        //         removeHealthBar = StartCoroutine(HideCanvasHealthBar(playerRefer.playerStatistics));
-        //     }
-        //     else{
-        //         playerRefer.impulseSource.GenerateImpulse();
-        //     }
-        // }
-        // if (playerRefer.playerStatistics.canvasHealthBar != null)
-        // {
-        //     playerRefer.playerStatistics.canvasHealthBar.value = statData.health;
-        // }
         if (playerRefer.playerClasses != null)
         {
             if (!playerRefer.playerClasses.isMonster && !(gameObject.layer == 12))
             {
-                cooldownUI.instance.UpdateUiInformation();
+                if(cooldownUI.instance != null) cooldownUI.instance.UpdateUiInformation();
             }
         }
 
@@ -576,46 +546,23 @@ public class PlayerStatistics : NetworkBehaviour
             }
             else
             {
-                playerRefer.effectUtils.HitEffect(0.25f);
+                if(playerRefer.effectUtils != null) playerRefer.effectUtils.HitEffect(0.25f);
             }
         }
     }
 
-    // RPC A ENVOYER A TOUT LE MONDE
     [ClientRpc]
     public void UpdateUiAndPlayerDataClientRpc(NetworkObjectReference defenderRef, NetworkObjectReference attackerRef, ClientRpcParams clientParams = default)
     {
-        cooldownUI.instance.UpdateUiInformation();
+        if(cooldownUI.instance != null) cooldownUI.instance.UpdateUiInformation();
         if (attackerRef.TryGet(out NetworkObject attackerNet))
         {
             if (!attackerNet.IsLocalPlayer)
             {
-                cooldownUI.instance.UpdateEnemyIndicator(attackerNet.GetComponent<PlayerReference>());
+                if(cooldownUI.instance != null) cooldownUI.instance.UpdateEnemyIndicator(attackerNet.GetComponent<PlayerReference>());
             }
         }
     }
-
-    /*[ClientRpc]
-    void RespawnClientRpc(Vector3 position)
-    {
-        // Ici le serveur demande aux clients d'executer cette fonction:
-        StartCoroutine(Respawn(position));
-    }
-
-
-    IEnumerator Respawn(Vector3 position)
-    {
-        // Cela doit détruire le fonctionnement de la synchro des mouvements multijoueurs !
-
-        yield return new WaitForSeconds(3f);
-        cc.enabled = false;
-        transform.position = position;
-        cc.enabled = true;
-        foreach (var renderer in renderers)
-        {
-            renderer.enabled = true;
-        }
-    }*/
 
     public int GetKills()
     {
@@ -625,20 +572,19 @@ public class PlayerStatistics : NetworkBehaviour
     public int GetPoints()
     {
         return 0;
-        //return SceneManager.GetActiveScene().name != "PlaineDeEnol" ? playerDataGame.point : playerDataGame.wavePoint;
     }
     public string GetAccountId()
     {
+        if(playerDataGame.accountId.Value == null) return "0";
         return playerDataGame.accountId.Value.ToString();
     }
-
 
     [ClientRpc]
     public void UpdateSoulHealthClientRpc(StatStruct statPl)
     {
         if (playerStatData.soul != statPl.soul)
         {
-            if (IsLocalPlayer)
+            if (IsLocalPlayer && cooldownUI.instance != null)
             {
                 cooldownUI.instance.PlaySoulEffect();
             }
@@ -647,7 +593,7 @@ public class PlayerStatistics : NetworkBehaviour
         playerStatData.maxHealth = statPl.maxHealth;
         playerStatData.health = statPl.health;
         SoundManager.Instance.Play2D("soul");
-        cooldownUI.instance.UpdateUiInformation();
+        if(cooldownUI.instance != null) cooldownUI.instance.UpdateUiInformation();
     }
 
     [ClientRpc]
@@ -659,23 +605,26 @@ public class PlayerStatistics : NetworkBehaviour
         ParaSeconds = para;
         StunAirSeconds = stunAir;
 
-        if (!playerReference.playerClasses.isMonster)
+        // FIX : Sécurité si PlayerClasses n'existe pas
+        if (playerReference.playerClasses != null && !playerReference.playerClasses.isMonster)
         {
-            var input = playerReference.characterBrain.inputHandlerSettings.InputHandler;
-            if (input != null)
-            {
-                input.isStunned = stun > 0f;
-                input.isFrozen = freeze > 0f;
-                input.isSleeping = sleep > 0f;
-                input.isParalyzed = para > 0f;
-                input.isStunnedAir = stunAir > 0f;
+            if(playerReference.characterBrain != null) {
+                var input = playerReference.characterBrain.inputHandlerSettings.InputHandler;
+                if (input != null)
+                {
+                    input.isStunned = stun > 0f;
+                    input.isFrozen = freeze > 0f;
+                    input.isSleeping = sleep > 0f;
+                    input.isParalyzed = para > 0f;
+                    input.isStunnedAir = stunAir > 0f;
+                }
             }
         }
     }
 
+    // UNIQUE FONCTION RECORDKILL
     public void RecordKill(bool isMonster)
     {
-
         if (isMonster)
         {
             playerStatData.monsterKills += 1;
@@ -690,6 +639,3 @@ public class PlayerStatistics : NetworkBehaviour
         }
     }
 }
-
-
-

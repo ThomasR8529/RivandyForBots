@@ -1,103 +1,62 @@
-﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using Unity.Netcode;
+using UnityEngine.AI;
+using SurvivorMode;
+using PhysicsBasedCharacterController;
 using System.Linq;
 using Org.BouncyCastle.Bcpg;
-using PhysicsBasedCharacterController;
-using Unity.Collections;
-using Unity.Netcode;
 using Unity.Netcode.Components;
-using UnityEngine;
-using SurvivorMode;
-using UnityEngine.AI;
 
-public class Follow : NetworkBehaviour
+
+[RequireComponent(typeof(CombatMonster))]
+[RequireComponent(typeof(PhysicsMonster))]
+
+public partial class Follow : NetworkBehaviour
 {
-	[SerializeField] private NavMeshAgent agent;
+    public CombatMonster CombatMonster;
+    public PhysicsMonster physicsMonster;
 
-	private Animator animator;
-	private PlayerReference monsterReference;
+    // === Champs généraux ===
+    [SerializeField] public NavMeshAgent agent;
+    private Animator animator;
+    public PlayerReference monsterReference;
 
-	public bool isDead;
+    public bool isDead;
+    public Transform cibleur;
+    public bool doBackward;
 
-	[Header("Cibleur: le transform qui gÃ¨re le lancer pour tirer le projectile")]
-	public Transform cibleur;
+    [SerializeField] private LayerMask targetableLayers;
+    public PlayerReference cible;
+    [HideInInspector] public Transform defendTarget;
+    public Transform TargetXform => (cible != null ? cible.transform : defendTarget);
 
-	[Header("doBackward: est-ce-que le monstre doit reculer s'il est au corps Ã  corps ? ")]
-	public bool doBackward;
+    [HideInInspector, SerializeField] public Vector3 defaultPosition;
+    [SerializeField] public float rotationSpeed = 6f;
 
-	// Layers que ce monstre peut cibler (joueurs, monstres ou couches custom)
-	[SerializeField] private LayerMask targetableLayers = (1 << 9) | (1 << 3) | (1 << 5);
+    private Vector3 previousPosition;
+    private Coroutine activateFaceBack;
+    private float stationaryTimer = 0f;
 
-	public PlayerReference cible;
-	// Optional non-player target (e.g., Stone Heart)
-	[HideInInspector] public Transform defendTarget;
-	private Transform TargetXform => (cible != null ? cible.transform : defendTarget);
+    public Billboard billboardEntity;
+    public string twitchName;
 
-	[SerializeField] private float timeBetweenSpells = 2.5f;
-	[SerializeField] private float timeBetweenAutoAttacks = 2f;
-	private float lastTimeAutoAttackUsed;
+    public float originalStoppingDistance;
+    private float originalSpeed;
 
-	[SerializeField, HideInInspector] private float lastTimeSpellUsed;
+    public List<List<float>> movementSpeedFactors;
 
-	[HideInInspector, SerializeField] public Vector3 defaultPosition;
+    private bool isRetreat;
+    private float stunAccumulated;
 
-	[SerializeField] public float rotationSpeed = 6f;
+    private void Awake()
+    {
+        CombatMonster = GetComponent<CombatMonster>();
+        physicsMonster = GetComponent<PhysicsMonster>();
+    }
 
-	private Rigidbody rigidBody;
-	private CapsuleCollider capsule;
-
-	private Vector3 previousPosition;
-
-	public float maxSpellRange = 50f;
-
-	private Coroutine activateFaceBack;
-	private float stationaryTimer = 0f;
-
-	// ---- Push management (un seul contrÃ´leur + pile d'impulsions) ----
-	private Coroutine pushCoroutine;
-
-	[HideInInspector] public bool isInBlockMove = false;
-
-	public Billboard billboardEntity;
-	public string twitchName;
-
-	private float originalStoppingDistance;
-	private float originalSpeed;
-
-	public List<List<float>> movementSpeedFactors;
-
-	[HideInInspector] public bool blockCast;
-
-	[SerializeField] private float retreatThresholdRatio = 0.85f;
-	[SerializeField] private float approachThresholdRatio = 1.15f;
-
-	private bool isRetreat;
-	private float stunAccumulated;
-
-	// ---------- NEW: gestion concurrente des pushes ----------
-	private struct PushEntry
-	{
-		public Vector3 velocity;  // units/s
-		public float endTime;     // Time.time quand ce push expire
-	}
-
-	private readonly List<PushEntry> activePushes = new List<PushEntry>(4);
-	private bool pushFirstWarpDone = false;  // le premier push fait le warp de dÃ©part
-	private Vector3 cachedStartPos;
-	private Quaternion cachedStartRot;
-
-	// sauvegarde Ã©tat collisions/physique pendant le push
-	private bool prevKinematic;
-	private bool IsPushing => pushCoroutine != null;
-
-	// FenÃªtre tampon pour absorber les micro-trous entre pushes
-	[SerializeField] private float waitBeforeNormalState = 0.3f; // 120 ms de tampon
-	private float pushReleaseAt = 0f;                       // Time.time Ã  partir duquel on peut relÃ¢cher blockCast
-	private bool IsPushLocked => blockCast || IsPushing || Time.time < pushReleaseAt;
-	// ----------------------------------------------------------
-
-	public override void OnNetworkSpawn()
+    public override void OnNetworkSpawn()
 	{
 		Debug.Log("On NETWORK SPAWN");
 		originalStoppingDistance = agent.stoppingDistance;
@@ -136,13 +95,13 @@ public class Follow : NetworkBehaviour
 			defendTarget = null;
 		}
 
-#if UNITY_SERVER
+        #if UNITY_SERVER
 		previousPosition = agent.transform.position;
 		StartCoroutine(ResyncMonsterPositionRoutine());
-#endif
+    #endif
 	}
 
-	public override void OnNetworkDespawn()
+    public override void OnNetworkDespawn()
 	{
 		Debug.Log("Despawn monster");
 	}
@@ -152,7 +111,7 @@ public class Follow : NetworkBehaviour
 		while (true)
 		{
 			// tant quâ€™on pousse, on ne corrige pas la position
-			if (!IsPushing && agent.enabled)
+			if (!physicsMonster.IsPushing && agent.enabled)
 			{
 				if (!agent.isOnNavMesh)
 				{
@@ -164,12 +123,12 @@ public class Follow : NetworkBehaviour
 				}
 			}
 			yield return new WaitForSeconds(2.5f);
-			if (!IsPushing && agent.enabled)
-				SyncMonsterPositionClientRpc(agent.transform.position);
+			if (!physicsMonster.IsPushing && agent.enabled)
+				physicsMonster.SyncMonsterPositionClientRpc(agent.transform.position);
 		}
 	}
 
-	private void Update()
+    	private void Update()
 	{
 		if (monsterReference != null)
 		{
@@ -222,9 +181,9 @@ public class Follow : NetworkBehaviour
 			{
 				FindNearestTarget();
 			}
-			if (!IsMovementBlocked() && !IsPushing && agent.enabled && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer) && cible == null && GameController.instance.playerReference.playerStatistics.playerInstanciated)
+			if (!IsMovementBlocked() && !physicsMonster.IsPushing && agent.enabled && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer) && cible == null && GameController.instance.playerReference.playerStatistics.playerInstanciated)
 			{
-				AskNearestTargetServerRpc();
+				CombatMonster.AskNearestTargetServerRpc();
 			}
 		}
 
@@ -234,36 +193,36 @@ public class Follow : NetworkBehaviour
 			{
 				cible = null;
 				if (agent.isActiveAndEnabled) agent.ResetPath();
-#if UNITY_SERVER
-				ApplyNullCibleClientRpc();
-#endif
+        #if UNITY_SERVER
+				CombatMonster.ApplyNullCibleClientRpc();
+        #endif
 			}
 			if (TargetXform != null)
 			{
 				float distance = Vector3.Distance(TargetXform.position, agent.transform.position);
 
 				// IMPORTANT: on empÃªche tout cast pendant push/hold
-				if (IsServer && !IsPushLocked && !isRetreat)
+				if (IsServer && !physicsMonster.IsPushLocked && !isRetreat)
 				{
-					if (Time.time > lastTimeSpellUsed + timeBetweenSpells)
+					if (Time.time > CombatMonster.lastTimeSpellUsed + CombatMonster.timeBetweenSpells)
 					{
-						TryCastSpell(distance);
+						CombatMonster.TryCastSpell(distance);
 					}
 				}
 
-				if (agent.isActiveAndEnabled && !IsPushing && !IsMovementBlocked())
+				if (agent.isActiveAndEnabled && !physicsMonster.IsPushing && !IsMovementBlocked())
 				{
 					float preferredDistance = originalStoppingDistance;
 
-					if (agent.isActiveAndEnabled && !IsPushing && !IsMovementBlocked())
+					if (agent.isActiveAndEnabled && !physicsMonster.IsPushing && !IsMovementBlocked())
 					{
-						if (distance < preferredDistance * retreatThresholdRatio && doBackward)
+						if (distance < preferredDistance * CombatMonster.retreatThresholdRatio && doBackward)
 						{
 							isRetreat = true;
 							agent.speed = originalSpeed / 2f;
 							RetreatFromTarget();
 						}
-						else if (distance > preferredDistance * approachThresholdRatio)
+						else if (distance > preferredDistance * CombatMonster.approachThresholdRatio)
 						{
 							if (!agent.isOnNavMesh)
 							{
@@ -297,7 +256,7 @@ public class Follow : NetworkBehaviour
 			return;
 
 		// S'il est dans une position d'arrÃªt
-		if (monsterReference.playerStatistics.isBehindWho == null && !agent.enabled && !IsPushing) agent.enabled = true;
+		if (monsterReference.playerStatistics.isBehindWho == null && !agent.enabled && !physicsMonster.IsPushing) agent.enabled = true;
 
 		if (IsMovementBlocked())
 		{
@@ -309,28 +268,28 @@ public class Follow : NetworkBehaviour
 				agent.transform.position = monsterReference.playerStatistics.isBehindWho.transform.position;
 			}
 			animator.SetBool("isWalking", false);
-#if UNITY_SERVER
+        #if UNITY_SERVER
 			if (monsterReference.playerStatistics.isBehindWho != null || monsterReference.playerStatistics.playerStatData.health <= 0f)
 			{
-				ApplyNullCibleClientRpc();
+				CombatMonster.ApplyNullCibleClientRpc();
 				cible = null;
 			}
-#endif
+        #endif
 
 			if (monsterReference.playerStatistics.playerStatData.health <= 0f && !isDead)
 			{
 				isDead = true;
-#if !UNITY_SERVER
+        #if !UNITY_SERVER
 				animator.Play("dead", 0, 0f);
 				Instantiate(monsterReference.playerClasses.deathEffect, agent.transform.position, Quaternion.identity);
 				CapsuleCollider col = agent.GetComponent<CapsuleCollider>();
 				if (col != null) Destroy(col);
-#endif
+        #endif
 
 				if (Run.instance.CPUcontroller != null) Run.instance.CPUcontroller.zone.monsterNumber -= 1;
-#if UNITY_SERVER
+        #if UNITY_SERVER
 				NetworkManager.Destroy(monsterReference.gameObject, 2f);
-#endif
+        #endif
 			}
 		}
 		else
@@ -358,9 +317,9 @@ public class Follow : NetworkBehaviour
 			if (agent.enabled && !IsMovementBlocked())
 				FaceTarget();
 		}
-	}
+	}  
 
-	private IEnumerator AttemptRepositionToNavMesh()
+    private IEnumerator AttemptRepositionToNavMesh()
 	{
 		float maxTime = 2f;
 		float elapsed = 0f;
@@ -381,7 +340,7 @@ public class Follow : NetworkBehaviour
 		}
 	}
 
-	private void RetreatFromTarget(float retreatDistance = 2f)
+    private void RetreatFromTarget(float retreatDistance = 2f)
 	{
 		if (TargetXform == null || !agent.enabled || IsMovementBlocked()) return;
 
@@ -404,7 +363,7 @@ public class Follow : NetworkBehaviour
 		}
 	}
 
-	private void FaceTarget()
+    private void FaceTarget()
 	{
 		if (TargetXform == null) return;
 		Vector3 targetDirection = TargetXform.position - agent.transform.position;
@@ -417,7 +376,7 @@ public class Follow : NetworkBehaviour
 		}
 	}
 
-	private void FaceBack()
+    private void FaceBack()
 	{
 		if (cible != null) return;
 		Vector3 targetDirection = defaultPosition - agent.transform.position;
@@ -430,27 +389,28 @@ public class Follow : NetworkBehaviour
 		}
 	}
 
-	private void OnTriggerEnter(Collider other)
+    private void OnTriggerEnter(Collider other)
 	{
 		if (monsterReference == null || monsterReference.playerStatistics == null) return;
 		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
 		if (activateFaceBack != null) StopCoroutine(activateFaceBack);
-#if UNITY_SERVER
+    #if UNITY_SERVER
 		PlayerReference otherRef = other.GetComponent<PlayerReference>();
 		if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
 		{
 			return;
 		}
 
-		if (cible == null && otherRef != null)
-		{
+        if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
 			cible = otherRef;
-			ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
+			CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
 		}
-#endif
+    #endif
 	}
 
-#if UNITY_SERVER
+    
+
+    #if UNITY_SERVER
 	private void OnTriggerStay(Collider other)
 	{
 		if (monsterReference == null || monsterReference.playerStatistics == null)
@@ -469,15 +429,14 @@ public class Follow : NetworkBehaviour
 		{
 			return;
 		}
-		if (cible == null && otherRef != null)
-		{
+        if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
 			cible = otherRef;
-			ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
+			CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
 		}
 	}
-#endif
+    #endif
 
-	private void OnTriggerExit(Collider other)
+    private void OnTriggerExit(Collider other)
 	{
 		if (cible != null && other.gameObject == cible && Run.instance.CPUcontroller.zone.serverMode == GameMode.BattleRoyale)
 		{
@@ -498,78 +457,7 @@ public class Follow : NetworkBehaviour
 		}
 	}
 
-	private void CheckSpellExecution(float distance)
-	{
-		// SÃ©curitÃ© supplÃ©mentaire si cette voie est encore utilisÃ©e quelque part
-		if (monsterReference == null || monsterReference.playerShooting == null || monsterReference.playerClasses == null || IsMovementBlocked() || IsPushLocked)
-			return;
-
-		lastTimeSpellUsed = Time.time;
-
-		var spells = monsterReference.playerClasses.spells;
-		float defaultRange = originalStoppingDistance + 3f;
-		float[] spellCooldowns = {
-			monsterReference.playerClasses.warriorSpell1CD,
-			monsterReference.playerClasses.warriorSpell2CD,
-			monsterReference.playerClasses.warriorSpell3CD,
-			monsterReference.playerClasses.warriorSpell4CD
-		};
-
-		for (int i = 0; i < spells.Length && i < spellCooldowns.Length; i++)
-		{
-			float currentSpellRange = spells[i].spellRange != 0 ? spells[i].spellRange : defaultRange;
-
-			if (spellCooldowns[i] <= 0f && distance < currentSpellRange && distance < maxSpellRange)
-			{
-				monsterReference.playerShooting.ExecuteSpell(i, 0f, isPlayer: false);
-				break;
-			}
-		}
-	}
-
-	public NavMeshAgent GetAgent() => agent;
-
-	[ClientRpc]
-	public void ApplyCibleClientRpc(NetworkObjectReference netCible, Vector3 positionToApply, ClientRpcParams _ = default)
-	{
-		if (netCible.TryGet(out NetworkObject casterNet))
-		{
-			Debug.Log("ApplyCibelClientRpc");
-			cible = casterNet.gameObject.GetComponent<PlayerReference>();
-			// ne warp pas si on est en cours de push
-			if (!IsPushing && agent.enabled)
-				agent.Warp(positionToApply);
-		}
-	}
-
-	[ClientRpc]
-	public void ApplyNullCibleClientRpc()
-	{
-		cible = null;
-	}
-
-	[ServerRpc(RequireOwnership = false)]
-	public void AskNearestTargetServerRpc(ServerRpcParams serverRpcParams = default)
-	{
-		if (cible == null)
-		{
-			FindNearestTarget();
-		}
-		Debug.Log("AskNearestTargetServerRpc 1");
-		if (cible == null) return;
-		Debug.Log("AskNearestTargetServerRpc 2");
-		ClientRpcParams clientRpcParams = new ClientRpcParams
-		{
-			Send = new ClientRpcSendParams
-			{
-				TargetClientIds = new ulong[] { serverRpcParams.Receive.SenderClientId }
-			}
-		};
-		Debug.Log("AskNearestTargetServerRpc 3");
-		ApplyCibleClientRpc(cible.networkObject, agent.transform.position, clientRpcParams);
-	}
-
-	private void FindNearestTarget()
+    public void FindNearestTarget()
 	{
 		if (cible != null)
 			return;
@@ -596,294 +484,11 @@ public class Follow : NetworkBehaviour
 		if (nearestTarget != null)
 		{
 			cible = nearestTarget;
-			ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
+			CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
 		}
 	}
 
-	[ClientRpc]
-	public void SyncMonsterPositionClientRpc(Vector3 position)
-	{
-		// ignorer sync pendant un push
-		if (!IsPushing && agent.enabled) agent.Warp(position);
-		if (!agent.isOnNavMesh)
-		{
-			NavMeshHit hit;
-			if (NavMesh.SamplePosition(agent.transform.position, out hit, 6f, NavMesh.AllAreas))
-			{
-				agent.Warp(hit.position);
-			}
-			else
-			{
-				Debug.LogWarning("Aucune position NavMesh trouvÃ©e autour du monstre.");
-			}
-		}
-	}
-
-	// ======== API publique appelÃ©e par les sorts ========
-
-	public void TriggerPush(Vector3 pushDirection, float pushDuration)
-	{
-		// convertir en vitesse monde (lâ€™ancienne implÃ©mentation multipliait par 0.8f Ã  chaque frame)
-		Vector3 velocity = pushDirection * 0.8f;
-
-#if UNITY_SERVER
-		TriggerPushClientRpc(velocity, pushDuration, agent.transform.position, agent.transform.rotation);
-#endif
-		EnqueuePush(velocity, pushDuration, agent.transform.position, agent.transform.rotation);
-	}
-
-	[ClientRpc]
-	public void TriggerPushClientRpc(Vector3 velocity, float pushDuration, Vector3 startPosition, Quaternion startRotation)
-	{
-		EnqueuePush(velocity, pushDuration, startPosition, startRotation);
-	}
-
-	// ======== Coeur de la nouvelle gestion des pushes ========
-
-	private void EnqueuePush(Vector3 velocity, float duration, Vector3 startPosition, Quaternion startRotation)
-	{
-		float endTime = Time.time + Mathf.Max(0.01f, duration);
-		activePushes.Add(new PushEntry { velocity = velocity, endTime = endTime });
-
-		// Prolonge la fenÃªtre d'interdiction de cast
-		pushReleaseAt = Mathf.Max(pushReleaseAt, endTime + waitBeforeNormalState);
-
-		// IMPORTANT: sÃ©curiser immÃ©diatement sans attendre le coroutine
-		blockCast = true;
-		Debug.Log("BLOCK CAST: TRUE");
-
-		if (!IsPushing)
-		{
-			pushFirstWarpDone = false;
-			cachedStartPos = startPosition;
-			cachedStartRot = startRotation;
-			pushCoroutine = StartCoroutine(PushController());
-		}
-	}
-
-	private IEnumerator PushController()
-	{
-		// 1) PrÃ©paration: un seul warp + dÃ©sactivation agent + geler collisions pour Ã©viter frottements
-		if (!pushFirstWarpDone)
-		{
-			if (rigidBody == null) rigidBody = GetComponent<Rigidbody>();
-			if (capsule == null) capsule = (agent != null ? agent.GetComponent<CapsuleCollider>() : null) ?? GetComponent<CapsuleCollider>();
-			if (rigidBody != null)
-			{
-				prevKinematic = rigidBody.isKinematic;
-				rigidBody.isKinematic = true; // on fige, mais on ne touche pas Ã  detectCollisions
-			}
-
-			agent.transform.rotation = cachedStartRot;
-			agent.Warp(cachedStartPos);
-			agent.enabled = false;
-			blockCast = true; // redondant mais explicite
-			pushFirstWarpDone = true;
-		}
-
-		// 2) Boucle pendant quâ€™il reste des pushes actifs
-		while (true)
-		{
-			// purge
-			float now = Time.time;
-			for (int i = activePushes.Count - 1; i >= 0; --i)
-				if (activePushes[i].endTime <= now)
-					activePushes.RemoveAt(i);
-
-			// plus de pushes actifs ?
-			if (activePushes.Count == 0)
-			{
-				// on garde blockCast tant que la fenÃªtre "hold" n'est pas Ã©coulÃ©e
-				if (Time.time < pushReleaseAt)
-				{
-					yield return null;
-					continue;
-				}
-				break; // fin de push: on pourra restaurer et mettre blockCast=false
-			}
-
-			// somme des vitesses + dÃ©placement
-			Vector3 totalVelocity = Vector3.zero;
-			for (int i = 0; i < activePushes.Count; i++)
-				totalVelocity += activePushes[i].velocity;
-
-			Vector3 currentPosition = agent.transform.position;
-			Vector3 nextPosition = currentPosition + totalVelocity * Time.deltaTime;
-
-			// sÃ©curitÃ© anti-traversÃ©e sol si on descend
-			if (totalVelocity.y < 0f)
-			{
-				Vector3 origin = currentPosition + Vector3.up * 0.1f;
-				float distance = (nextPosition - currentPosition).magnitude + 0.1f;
-				if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, distance, LayerMask.GetMask("Ground")))
-				{
-					for (int i = activePushes.Count - 1; i >= 0; --i)
-						if (activePushes[i].velocity.y < 0f)
-							activePushes.RemoveAt(i);
-					yield return null;
-					continue;
-				}
-			}
-
-			// CapsuleCast sweep with simple sliding against obstacles
-			int obstacleMask = LayerMask.GetMask("Default", "Ground");
-			float skin = 0.02f;
-			int maxSlides = 2;
-			Vector3 delta = nextPosition - currentPosition;
-			Vector3 newPos = currentPosition;
-			if (delta.sqrMagnitude > 1e-8f)
-			{
-				GetCapsuleWorld(capsule, out Vector3 baseP1, out Vector3 baseP2, out float capRadius);
-				Vector3 offset = newPos - agent.transform.position;
-				Vector3 p1 = baseP1 + offset;
-				Vector3 p2 = baseP2 + offset;
-
-				for (int i = 0; i < maxSlides && delta.sqrMagnitude > 1e-8f; i++)
-				{
-					Vector3 dir = delta.normalized;
-					float dist = delta.magnitude;
-					if (Physics.CapsuleCast(p1, p2, capRadius, dir, out RaycastHit hit, dist, obstacleMask, QueryTriggerInteraction.Ignore))
-					{
-						float moveDist = Mathf.Max(hit.distance - skin, 0f);
-						newPos += dir * moveDist;
-						delta -= dir * moveDist;
-						// Slide along the hit surface
-						delta = Vector3.ProjectOnPlane(delta, hit.normal);
-						// Recompute capsule start points at the new position (rotation remains unchanged during push)
-						offset = newPos - agent.transform.position;
-						p1 = baseP1 + offset;
-						p2 = baseP2 + offset;
-					}
-					else
-					{
-						newPos += dir * dist;
-						delta = Vector3.zero;
-					}
-				}
-
-				agent.transform.position = newPos;
-			}
-			else
-			{
-				agent.transform.position = nextPosition;
-			}
-			yield return null;
-		}
-
-		// 3) Reposer sur le sol si besoin
-		float safetyTimer = 0f;
-		while (!IsGrounded() && safetyTimer < 3f)
-		{
-			agent.transform.position += Vector3.down * 7f * Time.deltaTime;
-			safetyTimer += Time.deltaTime;
-			yield return null;
-		}
-
-		// 4) Restaurations & fin
-
-		if (rigidBody != null) rigidBody.isKinematic = prevKinematic;
-
-		if (!agent.enabled) agent.enabled = true;
-		blockCast = false;
-
-		if (!agent.isOnNavMesh)
-		{
-			if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 6f, NavMesh.AllAreas))
-				agent.Warp(hit.position);
-			else
-				Debug.LogWarning("Pas de NavMesh trouvÃ© pour re-warp.");
-		}
-
-		pushCoroutine = null;
-
-		if (cible == null) AskNearestTargetServerRpc();
-	}
-
-	// ======================================================
-
-	// Compute world capsule endpoints and radius for sweeping.
-	private void GetCapsuleWorld(CapsuleCollider col, out Vector3 p1, out Vector3 p2, out float radius)
-	{
-		if (col == null)
-		{
-			Vector3 basePos = (agent != null ? agent.transform.position : transform.position);
-			radius = 0.4f;
-			p1 = basePos + Vector3.up * 0.4f;
-			p2 = basePos + Vector3.up * 1.2f;
-			return;
-		}
-
-		Transform t = col.transform;
-		Vector3 center = t.TransformPoint(col.center);
-		Vector3 s = t.lossyScale;
-		int dir = col.direction; // 0=X, 1=Y, 2=Z
-		float axisScale = (dir == 0 ? Mathf.Abs(s.x) : (dir == 1 ? Mathf.Abs(s.y) : Mathf.Abs(s.z)));
-		float perpA = (dir == 0 ? Mathf.Abs(s.y) : Mathf.Abs(s.x));
-		float perpB = (dir == 2 ? Mathf.Abs(s.y) : Mathf.Abs(s.z));
-		radius = col.radius * Mathf.Max(perpA, perpB);
-		float heightWorld = Mathf.Max(col.height * axisScale, radius * 2f);
-		float halfCylinder = Mathf.Max(0f, (heightWorld * 0.5f) - radius);
-		Vector3 axis = (dir == 0 ? t.right : (dir == 1 ? t.up : t.forward));
-		p1 = center + axis * halfCylinder;
-		p2 = center - axis * halfCylinder;
-	}
-
-	private bool TryCastSpell(float distance)
-	{
-		if (monsterReference == null || monsterReference.playerShooting == null || monsterReference.playerClasses == null || IsMovementBlocked() || IsPushLocked)
-			return false;
-
-		var spells = monsterReference.playerClasses.spells;
-		float defaultRange = originalStoppingDistance + 3f;
-		float[] spellCooldowns = {
-			monsterReference.playerClasses.warriorSpell1CD,
-			monsterReference.playerClasses.warriorSpell2CD,
-			monsterReference.playerClasses.warriorSpell3CD,
-			monsterReference.playerClasses.warriorSpell4CD
-		};
-
-		for (int i = 0; i < spells.Length && i < spellCooldowns.Length; i++)
-		{
-			float currentSpellRange = spells[i].spellRange != 0 ? spells[i].spellRange : defaultRange;
-
-			if (spellCooldowns[i] <= 0f && distance < currentSpellRange && distance < maxSpellRange)
-			{
-				monsterReference.playerShooting.ExecuteSpell(i, 0f, isPlayer: false);
-				lastTimeSpellUsed = Time.time;
-				lastTimeAutoAttackUsed = Time.time;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private void TryAutoAttack(float distance)
-	{
-		if (monsterReference == null || monsterReference.playerShooting == null || monsterReference.playerClasses == null || IsMovementBlocked() || IsPushLocked)
-			return;
-
-		var autoAttacks = monsterReference.playerClasses.autoAttacks;
-		float defaultRange = originalStoppingDistance + 3f;
-
-		for (int i = 0; i < autoAttacks.Length; i++)
-		{
-			if (autoAttacks[i] != null)
-			{
-				float range = autoAttacks[i].spellRange != 0 ? autoAttacks[i].spellRange : defaultRange;
-				if (distance < range && distance < maxSpellRange)
-				{
-					lastTimeSpellUsed = Time.time;
-					lastTimeAutoAttackUsed = Time.time;
-					Vector3 aimPos = TargetXform != null ? TargetXform.position : agent.transform.position;
-					monsterReference.playerShooting.LaunchSpellGlobal(monsterReference.gameObject, i, aimPos, true);
-					monsterReference.playerShooting.LaunchSpellClientRpc(monsterReference.gameObject, i, true, aimPos);
-					break;
-				}
-			}
-		}
-	}
-
-	private void SpeedStateChanging()
+    private void SpeedStateChanging()
 	{
 		float factor = 1f;
 		if (movementSpeedFactors != null)
@@ -896,26 +501,9 @@ public class Follow : NetworkBehaviour
 					factor *= f[0];
 			}
 		}
+    }
 
-		agent.speed = originalSpeed * factor;
-	}
-
-	public bool IsGrounded(float distanceToGround = 0.3f, float sphereRadius = 0.25f)
-	{
-		Vector3 origin = monsterReference.transform.position + Vector3.up * 0.2f; // lÃ©gÃ¨rement relevÃ©
-		float castDistance = distanceToGround + 0.2f;
-
-		return Physics.SphereCast(
-			origin,
-			sphereRadius,
-			Vector3.down,
-			out RaycastHit hit,
-			castDistance,
-			LayerMask.GetMask("Ground", "Default")
-		);
-	}
-
-	public bool IsMovementBlocked()
+        public bool IsMovementBlocked()
 	{
 		return
 			monsterReference == null ||
@@ -926,39 +514,22 @@ public class Follow : NetworkBehaviour
 			monsterReference.playerStatistics.FreezeSeconds > 0f ||
 			monsterReference.playerStatistics.SleepSeconds > 0f ||
 			monsterReference.playerStatistics.ParaSeconds > 0f ||
-			isInBlockMove;
+			physicsMonster.isInBlockMove;
 	}
 
-	// API utilitaire : utilise la pile de pushs
-	public void MoveTowardsFromPoint(Vector3 point, float power, float seconds = 0.25f)
-	{
-		// Direction : du point -> monstre (sâ€™Ã©loigner du point)
-		Vector3 dir = agent.transform.position - point;
-		dir.y = 0f;
-		dir.Normalize();
+    public NavMeshAgent GetAgent() => agent;
 
-		// power < 0 => aller vers le point
-		if (power < 0f)
+	[ClientRpc]
+	public void ApplyCibleClientRpc(NetworkObjectReference netCible, Vector3 positionToApply, ClientRpcParams _ = default)
+	{
+		if (netCible.TryGet(out NetworkObject casterNet))
 		{
-			dir = -dir;
-			power = -power;
+			Debug.Log("ApplyCibelClientRpc");
+			cible = casterNet.gameObject.GetComponent<PlayerReference>();
+			// ne warp pas si on est en cours de push
+			if (!physicsMonster.IsPushing && agent.enabled)
+				agent.Warp(positionToApply);
 		}
-
-		Vector3 pushVelocity = dir * power * 0.45f;
-
-#if UNITY_SERVER
-		EnqueuePush(pushVelocity, (seconds > 0f ? seconds : 0.2f), agent.transform.position, agent.transform.rotation);
-		TriggerPushClientRpc(pushVelocity, (seconds > 0f ? seconds : 0.2f), agent.transform.position, agent.transform.rotation);
-#else
-		EnqueuePush(pushVelocity, (seconds > 0f ? seconds : 0.2f), agent.transform.position, agent.transform.rotation);
-#endif
-	}
-
-	// helper si tu as la rÃ©fÃ©rence du â€œcasterâ€
-	public void MoveTowardsCaster(PlayerReference caster, float power, float seconds = 0.25f)
-	{
-		if (caster == null) return;
-		MoveTowardsFromPoint(caster.transform.position, power, seconds);
 	}
 }
 

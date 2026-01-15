@@ -249,7 +249,7 @@ public class SpellDamageParticle : MonoBehaviour
                                 if (remainingPushDuration > 0)
                                 {
                                     Vector3 pushDirection = transform.rotation * pushType.pushPower;
-                                    stats.follow.TriggerPush(pushDirection, 0.2f);
+                                    stats.follow.physicsMonster.TriggerPush(pushDirection, 0.2f);
                                 }
                             }
                         }
@@ -261,7 +261,7 @@ public class SpellDamageParticle : MonoBehaviour
                         // Knockback (eloigner du caster)
                         if (spell.pushTargetBackSeconds > 0f && MathF.Abs(spell.pushTargetBackPower) > 0f)
                         {
-                            stats.follow.MoveTowardsFromPoint(
+                            stats.follow.physicsMonster.MoveTowardsFromPoint(
                                 casterRef.rigidBody != null ? casterRef.rigidBody.transform.position : casterRef.transform.position,
                                 spell.pushTargetBackPower,
                                 spell.pushTargetBackSeconds
@@ -272,7 +272,7 @@ public class SpellDamageParticle : MonoBehaviour
                         if (spell.pushTargetFrontSeconds > 0f && MathF.Abs(spell.pushTargetFrontPower) > 0f)
                         {
                             // On passe une power negative pour aller VERS le point (voir MoveTowardsFromPoint)
-                            stats.follow.MoveTowardsFromPoint(
+                            stats.follow.physicsMonster.MoveTowardsFromPoint(
                                 casterRef.rigidBody != null ? casterRef.rigidBody.transform.position : casterRef.transform.position,
                                 -spell.pushTargetFrontPower,
                                 spell.pushTargetFrontSeconds

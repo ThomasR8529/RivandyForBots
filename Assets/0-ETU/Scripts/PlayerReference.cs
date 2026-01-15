@@ -10,6 +10,9 @@ using UnityEngine.Events;
 using RealToon.Script;
 public class PlayerReference : NetworkBehaviour
 {
+    public CombatMonster combatMonster;
+    public PhysicsMonster physicsMonster;
+
     [HideInInspector] public PlayerShooting playerShooting;
     [HideInInspector] public PlayerClasses playerClasses;
     public PlayerStatistics playerStatistics;
