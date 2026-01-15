@@ -13,21 +13,25 @@ using Unity.Netcode.Components;
 [RequireComponent(typeof(CombatMonster))]
 [RequireComponent(typeof(PhysicsMonster))]
 
-public partial class Follow : NetworkBehaviour
+public class Follow : NetworkBehaviour
 {
     public CombatMonster CombatMonster;
     public PhysicsMonster physicsMonster;
 
     // === Champs généraux ===
     [SerializeField] public NavMeshAgent agent;
+
+    
     private Animator animator;
     public PlayerReference monsterReference;
 
     public bool isDead;
+    [Header("Cibleur: le transform qui gÃ¨re le lancer pour tirer le projectile")]
     public Transform cibleur;
+    [Header("doBackward: est-ce-que le monstre doit reculer s'il est au corps Ã  corps ? ")]
     public bool doBackward;
 
-    [SerializeField] private LayerMask targetableLayers;
+    [SerializeField] private LayerMask targetableLayers = (1 << 9) | (1 << 3) | (1 << 5);
     public PlayerReference cible;
     [HideInInspector] public Transform defendTarget;
     public Transform TargetXform => (cible != null ? cible.transform : defendTarget);
@@ -49,6 +53,8 @@ public partial class Follow : NetworkBehaviour
 
     private bool isRetreat;
     private float stunAccumulated;
+
+    public NavMeshAgent GetAgent() => agent;
 
     private void Awake()
     {
@@ -95,10 +101,10 @@ public partial class Follow : NetworkBehaviour
 			defendTarget = null;
 		}
 
-        #if UNITY_SERVER
+#if UNITY_SERVER
 		previousPosition = agent.transform.position;
 		StartCoroutine(ResyncMonsterPositionRoutine());
-    #endif
+#endif
 	}
 
     public override void OnNetworkDespawn()
@@ -193,9 +199,9 @@ public partial class Follow : NetworkBehaviour
 			{
 				cible = null;
 				if (agent.isActiveAndEnabled) agent.ResetPath();
-        #if UNITY_SERVER
+#if UNITY_SERVER
 				CombatMonster.ApplyNullCibleClientRpc();
-        #endif
+#endif
 			}
 			if (TargetXform != null)
 			{
@@ -268,28 +274,28 @@ public partial class Follow : NetworkBehaviour
 				agent.transform.position = monsterReference.playerStatistics.isBehindWho.transform.position;
 			}
 			animator.SetBool("isWalking", false);
-        #if UNITY_SERVER
+#if UNITY_SERVER
 			if (monsterReference.playerStatistics.isBehindWho != null || monsterReference.playerStatistics.playerStatData.health <= 0f)
 			{
 				CombatMonster.ApplyNullCibleClientRpc();
 				cible = null;
 			}
-        #endif
+#endif
 
 			if (monsterReference.playerStatistics.playerStatData.health <= 0f && !isDead)
 			{
 				isDead = true;
-        #if !UNITY_SERVER
+#if !UNITY_SERVER
 				animator.Play("dead", 0, 0f);
 				Instantiate(monsterReference.playerClasses.deathEffect, agent.transform.position, Quaternion.identity);
 				CapsuleCollider col = agent.GetComponent<CapsuleCollider>();
 				if (col != null) Destroy(col);
-        #endif
+#endif
 
 				if (Run.instance.CPUcontroller != null) Run.instance.CPUcontroller.zone.monsterNumber -= 1;
-        #if UNITY_SERVER
+#if UNITY_SERVER
 				NetworkManager.Destroy(monsterReference.gameObject, 2f);
-        #endif
+#endif
 			}
 		}
 		else
@@ -394,7 +400,7 @@ public partial class Follow : NetworkBehaviour
 		if (monsterReference == null || monsterReference.playerStatistics == null) return;
 		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
 		if (activateFaceBack != null) StopCoroutine(activateFaceBack);
-    #if UNITY_SERVER
+#if UNITY_SERVER
 		PlayerReference otherRef = other.GetComponent<PlayerReference>();
 		if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
 		{
@@ -405,12 +411,12 @@ public partial class Follow : NetworkBehaviour
 			cible = otherRef;
 			CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
 		}
-    #endif
+#endif
 	}
 
     
 
-    #if UNITY_SERVER
+#if UNITY_SERVER
 	private void OnTriggerStay(Collider other)
 	{
 		if (monsterReference == null || monsterReference.playerStatistics == null)
@@ -434,7 +440,7 @@ public partial class Follow : NetworkBehaviour
 			CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
 		}
 	}
-    #endif
+#endif
 
     private void OnTriggerExit(Collider other)
 	{
@@ -517,19 +523,5 @@ public partial class Follow : NetworkBehaviour
 			physicsMonster.isInBlockMove;
 	}
 
-    public NavMeshAgent GetAgent() => agent;
-
-	[ClientRpc]
-	public void ApplyCibleClientRpc(NetworkObjectReference netCible, Vector3 positionToApply, ClientRpcParams _ = default)
-	{
-		if (netCible.TryGet(out NetworkObject casterNet))
-		{
-			Debug.Log("ApplyCibelClientRpc");
-			cible = casterNet.gameObject.GetComponent<PlayerReference>();
-			// ne warp pas si on est en cours de push
-			if (!physicsMonster.IsPushing && agent.enabled)
-				agent.Warp(positionToApply);
-		}
-	}
 }
 

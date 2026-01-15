@@ -5262,7 +5262,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isInBlockMove: 0
-  originalStoppingDistance: 0
   waitBeforeNormalState: 0.3
 --- !u!114 &6560177505762716876
 MonoBehaviour:

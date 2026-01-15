@@ -240,6 +240,23 @@ public class PlayerStatistics : NetworkBehaviour
     {
         PlayerReference targetRef = player != null ? player.GetComponent<PlayerReference>() : null;
 
+        if (player == null) return;
+            NetworkObject targetNetParams = player.GetComponent<NetworkObject>();
+            if (targetNetParams == null || !targetNetParams.IsSpawned) 
+            {
+            // On ne peut pas appliquer de dégâts à un objet qui n'existe pas sur le réseau
+            return;
+        }
+
+        if (casterRef != null)
+        {
+        if (casterRef.networkObject == null || !casterRef.networkObject.IsSpawned)
+            {
+            // L'attaquant n'est pas valide réseau, on annule pour éviter le crash
+            return;
+            }
+         }   
+
         if (casterRef != null && targetRef != null && AreAllies(casterRef, targetRef))
         {
             return;

@@ -38,7 +38,7 @@ public class CombatMonster : NetworkBehaviour
 		lastTimeSpellUsed = Time.time;
 
 		var spells = follow.monsterReference.playerClasses.spells;
-		float defaultRange = physicsMonster.originalStoppingDistance + 3f;
+		float defaultRange = follow.originalStoppingDistance + 3f;
 		float[] spellCooldowns = {
 			follow.monsterReference.playerClasses.warriorSpell1CD,
 			follow.monsterReference.playerClasses.warriorSpell2CD,
