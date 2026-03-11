@@ -11,7 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/0-ETU/Scenes/COMBAT.unity
     guid: 4cc6d002643e7014cb321674d56d6c70
-  - enabled: 1
+  - enabled: 0
     path: Assets/0-ETU/Scenes/COMBAT 1.unity
     guid: f36ff9d2afe9be349ba6cf952ec3520d
   m_configObjects: {}

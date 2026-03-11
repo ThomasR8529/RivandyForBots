@@ -406,6 +406,7 @@ MonoBehaviour:
   CombatMonster: {fileID: 0}
   physicsMonster: {fileID: 0}
   agent: {fileID: -5768836939183544513}
+  dodgeMonster: {fileID: 0}
   monsterReference: {fileID: -3379511557872390653}
   isDead: 0
   cibleur: {fileID: 0}

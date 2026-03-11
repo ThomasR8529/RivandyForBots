@@ -63,7 +63,7 @@ public class CombatMonster : NetworkBehaviour
 
     public bool TryCastSpell(float distance)
 	{
-		if (follow.monsterReference == null || follow.monsterReference.playerShooting == null || follow.monsterReference.playerClasses == null || follow.IsMovementBlocked() || physicsMonster.IsPushLocked)
+		if (follow.monsterReference == null || follow.monsterReference.playerShooting == null || follow.monsterReference.playerClasses == null || follow.IsMovementBlocked() || physicsMonster.IsPushLocked || (follow.dodgeMonster != null && follow.dodgeMonster.IsDodging))
 			return false;
 
 		var spells = follow.monsterReference.playerClasses.spells;
