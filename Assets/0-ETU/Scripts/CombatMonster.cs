@@ -5,6 +5,9 @@ using Unity.Netcode;
 using SurvivorMode;
 using PhysicsBasedCharacterController;
 
+[RequireComponent(typeof(Follow))]
+[RequireComponent(typeof(PhysicsMonster))]
+
 public class CombatMonster : NetworkBehaviour
 
 {
@@ -83,8 +86,11 @@ public class CombatMonster : NetworkBehaviour
 				lastTimeAutoAttackUsed = Time.time;
 				return true;
 			}
+			Debug.Log("Spell " + i + " CD = " + spellCooldowns[i]);
+			Debug.Log("distance = " + distance + " range = " + currentSpellRange);
 		}
-		return false;
+		TryAutoAttack(distance);
+    	return false;
 	}
 
     private void TryAutoAttack(float distance)

@@ -4,6 +4,9 @@ using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.AI;
 
+[RequireComponent(typeof(Follow))]
+[RequireComponent(typeof(CombatMonster))]
+
 public class PhysicsMonster : NetworkBehaviour
 {
     private Follow follow;
@@ -16,7 +19,6 @@ public class PhysicsMonster : NetworkBehaviour
 
     private float originalSpeed;
 
-    // --- LES LIGNES QUE TU VOULAIS AJOUTER ---
     private struct PushEntry
     {
         public Vector3 velocity;
@@ -46,9 +48,9 @@ public class PhysicsMonster : NetworkBehaviour
     {
         Vector3 velocity = pushDirection * 0.8f;
 
-#if UNITY_SERVER
+    #if UNITY_SERVER
         TriggerPushClientRpc(velocity, pushDuration, follow.agent.transform.position, follow.agent.transform.rotation);
-#endif
+    #endif
         EnqueuePush(velocity, pushDuration, follow.agent.transform.position, follow.agent.transform.rotation);
     }
 
@@ -260,7 +262,6 @@ public class PhysicsMonster : NetworkBehaviour
         EnqueuePush(pushVelocity, (seconds > 0f ? seconds : 0.2f), follow.agent.transform.position, follow.agent.transform.rotation);
         TriggerPushClientRpc(pushVelocity, (seconds > 0f ? seconds : 0.2f), follow.agent.transform.position, follow.agent.transform.rotation);
 #else
-        // Correction : remplacement de 'agent' par 'follow.agent'
         EnqueuePush(pushVelocity, (seconds > 0f ? seconds : 0.2f), follow.agent.transform.position, follow.agent.transform.rotation);
 #endif
     }

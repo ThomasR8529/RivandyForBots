@@ -199,16 +199,16 @@ public class Follow : NetworkBehaviour
 			{
 				cible = null;
 				if (agent.isActiveAndEnabled) agent.ResetPath();
-#if UNITY_SERVER
-				CombatMonster.ApplyNullCibleClientRpc();
-#endif
+				#if UNITY_SERVER
+					CombatMonster.ApplyNullCibleClientRpc();
+				#endif
 			}
 			if (TargetXform != null)
 			{
 				float distance = Vector3.Distance(TargetXform.position, agent.transform.position);
 
 				// IMPORTANT: on empÃªche tout cast pendant push/hold
-				if (IsServer && !physicsMonster.IsPushLocked && !isRetreat)
+				if (IsServer && !physicsMonster.IsPushing && !isRetreat)
 				{
 					if (Time.time > CombatMonster.lastTimeSpellUsed + CombatMonster.timeBetweenSpells)
 					{
@@ -218,7 +218,7 @@ public class Follow : NetworkBehaviour
 
 				if (agent.isActiveAndEnabled && !physicsMonster.IsPushing && !IsMovementBlocked())
 				{
-					float preferredDistance = originalStoppingDistance;
+					float preferredDistance = originalStoppingDistance * 0.9f;
 
 					if (agent.isActiveAndEnabled && !physicsMonster.IsPushing && !IsMovementBlocked())
 					{
@@ -274,28 +274,28 @@ public class Follow : NetworkBehaviour
 				agent.transform.position = monsterReference.playerStatistics.isBehindWho.transform.position;
 			}
 			animator.SetBool("isWalking", false);
-#if UNITY_SERVER
-			if (monsterReference.playerStatistics.isBehindWho != null || monsterReference.playerStatistics.playerStatData.health <= 0f)
-			{
-				CombatMonster.ApplyNullCibleClientRpc();
-				cible = null;
-			}
-#endif
+			#if UNITY_SERVER
+				if (monsterReference.playerStatistics.isBehindWho != null || monsterReference.playerStatistics.playerStatData.health <= 0f)
+				{
+					CombatMonster.ApplyNullCibleClientRpc();
+					cible = null;
+				}
+			#endif
 
 			if (monsterReference.playerStatistics.playerStatData.health <= 0f && !isDead)
 			{
 				isDead = true;
-#if !UNITY_SERVER
-				animator.Play("dead", 0, 0f);
-				Instantiate(monsterReference.playerClasses.deathEffect, agent.transform.position, Quaternion.identity);
-				CapsuleCollider col = agent.GetComponent<CapsuleCollider>();
-				if (col != null) Destroy(col);
-#endif
+				#if !UNITY_SERVER
+					animator.Play("dead", 0, 0f);
+					Instantiate(monsterReference.playerClasses.deathEffect, agent.transform.position, Quaternion.identity);
+					CapsuleCollider col = agent.GetComponent<CapsuleCollider>();
+					if (col != null) Destroy(col);
+				#endif
 
 				if (Run.instance.CPUcontroller != null) Run.instance.CPUcontroller.zone.monsterNumber -= 1;
-#if UNITY_SERVER
-				NetworkManager.Destroy(monsterReference.gameObject, 2f);
-#endif
+				#if UNITY_SERVER
+					NetworkManager.Destroy(monsterReference.gameObject, 2f);
+				#endif
 			}
 		}
 		else
@@ -323,6 +323,7 @@ public class Follow : NetworkBehaviour
 			if (agent.enabled && !IsMovementBlocked())
 				FaceTarget();
 		}
+		//Debug.Log("TargetXform: ",TargetXform);
 	}  
 
     private IEnumerator AttemptRepositionToNavMesh()
@@ -378,7 +379,7 @@ public class Follow : NetworkBehaviour
 		if (targetDirection != Vector3.zero)
 		{
 			Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
-			transform.parent.rotation = Quaternion.Slerp(transform.parent.rotation, targetRotation, Time.deltaTime * 1.5f);
+			transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 1.5f);
 		}
 	}
 
@@ -400,18 +401,18 @@ public class Follow : NetworkBehaviour
 		if (monsterReference == null || monsterReference.playerStatistics == null) return;
 		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
 		if (activateFaceBack != null) StopCoroutine(activateFaceBack);
-#if UNITY_SERVER
-		PlayerReference otherRef = other.GetComponent<PlayerReference>();
-		if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
-		{
-			return;
-		}
+		#if UNITY_SERVER
+			PlayerReference otherRef = other.GetComponent<PlayerReference>();
+			if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
+			{
+				return;
+			}
 
-        if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
-			cible = otherRef;
-			CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
-		}
-#endif
+			if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
+				cible = otherRef;
+				CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
+			}
+		#endif
 	}
 
     
@@ -474,6 +475,10 @@ public class Follow : NetworkBehaviour
 
 		foreach (var candidate in candidates)
 		{
+			if (candidate.playerStatistics == null)
+    			continue;
+			if (candidate.playerStatistics.playerStatData.health <= 0f)
+    			continue;
 			if (monsterReference != null && monsterReference == candidate)
 				continue;
 			if (monsterReference != null && monsterReference.playerStatistics != null && candidate.playerStatistics != null && monsterReference.playerStatistics.IsSameTeam(candidate.playerStatistics))
@@ -507,6 +512,7 @@ public class Follow : NetworkBehaviour
 					factor *= f[0];
 			}
 		}
+		agent.speed = originalSpeed * factor;
     }
 
         public bool IsMovementBlocked()

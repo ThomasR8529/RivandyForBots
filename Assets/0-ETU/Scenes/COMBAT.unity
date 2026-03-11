@@ -275,11 +275,26 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 704622914}
+    - target: {fileID: 1401021734915343714, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerReference
+      value: 
+      objectReference: {fileID: 704622904}
     - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: follow
       value: 
       objectReference: {fileID: 704622914}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: combatMonster
+      value: 
+      objectReference: {fileID: 704622916}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: physicsMonster
+      value: 
+      objectReference: {fileID: 704622915}
     - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: combatMonster
@@ -290,6 +305,11 @@ PrefabInstance:
       propertyPath: physicsMonster
       value: 
       objectReference: {fileID: 704622915}
+    - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerStatistics
+      value: 
+      objectReference: {fileID: 704622932}
     - target: {fileID: 4934952900591716185, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -491,6 +511,18 @@ MonoBehaviour:
   lastTimeSpellUsed: 0
   maxSpellRange: 50
   blockCast: 0
+--- !u!114 &267655543 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5981587772829161373, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+    type: 3}
+  m_PrefabInstance: {fileID: 1181024481}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 267655513}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e694f88333699841bab661508a77d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &311012238
 GameObject:
   m_ObjectHideFlags: 0
@@ -682,6 +714,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   isInBlockMove: 0
   waitBeforeNormalState: 0.3
+--- !u!114 &320595381 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: -8714706080824900283, guid: 02162763acc61c740ad3744fed516e7a,
+    type: 3}
+  m_PrefabInstance: {fileID: 1588526111}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 320595340}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e694f88333699841bab661508a77d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &397952587
 GameObject:
   m_ObjectHideFlags: 0
@@ -1104,6 +1148,18 @@ MonoBehaviour:
   lastTimeSpellUsed: 0
   maxSpellRange: 50
   blockCast: 0
+--- !u!114 &704622932 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5981587772829161373, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+    type: 3}
+  m_PrefabInstance: {fileID: 57101457}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 704622902}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e694f88333699841bab661508a77d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &712892426 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 6302510226872568387, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
@@ -1214,6 +1270,18 @@ MonoBehaviour:
   lastTimeSpellUsed: 0
   maxSpellRange: 50
   blockCast: 0
+--- !u!114 &790079963 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5981587772829161373, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+    type: 3}
+  m_PrefabInstance: {fileID: 735345339286658110}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 790079933}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e694f88333699841bab661508a77d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &798681129
 GameObject:
   m_ObjectHideFlags: 0
@@ -1410,11 +1478,26 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 267655525}
+    - target: {fileID: 1401021734915343714, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerReference
+      value: 
+      objectReference: {fileID: 267655515}
     - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: follow
       value: 
       objectReference: {fileID: 267655525}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: combatMonster
+      value: 
+      objectReference: {fileID: 267655527}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: physicsMonster
+      value: 
+      objectReference: {fileID: 267655526}
     - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: combatMonster
@@ -1425,6 +1508,11 @@ PrefabInstance:
       propertyPath: physicsMonster
       value: 
       objectReference: {fileID: 267655526}
+    - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerStatistics
+      value: 
+      objectReference: {fileID: 267655543}
     - target: {fileID: 4934952900591716185, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -2031,11 +2119,26 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 2094999023}
+    - target: {fileID: 1401021734915343714, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerReference
+      value: 
+      objectReference: {fileID: 2094999013}
     - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: follow
       value: 
       objectReference: {fileID: 2094999023}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: combatMonster
+      value: 
+      objectReference: {fileID: 2094999025}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: physicsMonster
+      value: 
+      objectReference: {fileID: 2094999024}
     - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: combatMonster
@@ -2046,6 +2149,11 @@ PrefabInstance:
       propertyPath: physicsMonster
       value: 
       objectReference: {fileID: 2094999024}
+    - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerStatistics
+      value: 
+      objectReference: {fileID: 2094999041}
     - target: {fileID: 4934952900591716185, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -2189,6 +2297,11 @@ PrefabInstance:
       propertyPath: physicsMonster
       value: 
       objectReference: {fileID: 320595365}
+    - target: {fileID: -3379511557872390653, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: playerStatistics
+      value: 
+      objectReference: {fileID: 320595381}
     - target: {fileID: 308324040437833495, guid: 02162763acc61c740ad3744fed516e7a,
         type: 3}
       propertyPath: m_Name
@@ -2229,6 +2342,11 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 320595364}
+    - target: {fileID: 4808830076669486756, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: playerReference
+      value: 
+      objectReference: {fileID: 320595354}
     - target: {fileID: 5280019928895595720, guid: 02162763acc61c740ad3744fed516e7a,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -2289,6 +2407,16 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 320595364}
+    - target: {fileID: 8639767051484303269, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: combatMonster
+      value: 
+      objectReference: {fileID: 320595352}
+    - target: {fileID: 8639767051484303269, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: physicsMonster
+      value: 
+      objectReference: {fileID: 320595365}
     m_RemovedComponents:
     - {fileID: 146472914066914599, guid: 02162763acc61c740ad3744fed516e7a, type: 3}
     m_RemovedGameObjects: []
@@ -2417,6 +2545,18 @@ MonoBehaviour:
   lastTimeSpellUsed: 0
   maxSpellRange: 50
   blockCast: 0
+--- !u!114 &1636536269 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: -8714706080824900283, guid: 02162763acc61c740ad3744fed516e7a,
+    type: 3}
+  m_PrefabInstance: {fileID: 1838976555}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1636536239}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e694f88333699841bab661508a77d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &1838976555
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2435,6 +2575,11 @@ PrefabInstance:
       propertyPath: playerReference
       value: 
       objectReference: {fileID: 1636536241}
+    - target: {fileID: -4785047036643222125, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: -3379511557872390653, guid: 02162763acc61c740ad3744fed516e7a,
         type: 3}
       propertyPath: combatMonster
@@ -2445,6 +2590,11 @@ PrefabInstance:
       propertyPath: physicsMonster
       value: 
       objectReference: {fileID: 1636536252}
+    - target: {fileID: -3379511557872390653, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: playerStatistics
+      value: 
+      objectReference: {fileID: 1636536269}
     - target: {fileID: 308324040437833495, guid: 02162763acc61c740ad3744fed516e7a,
         type: 3}
       propertyPath: m_StaticEditorFlags
@@ -2480,6 +2630,11 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 1636536251}
+    - target: {fileID: 4808830076669486756, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: playerReference
+      value: 
+      objectReference: {fileID: 1636536241}
     - target: {fileID: 5280019928895595720, guid: 02162763acc61c740ad3744fed516e7a,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -2540,6 +2695,16 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 1636536251}
+    - target: {fileID: 8639767051484303269, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: combatMonster
+      value: 
+      objectReference: {fileID: 1636536253}
+    - target: {fileID: 8639767051484303269, guid: 02162763acc61c740ad3744fed516e7a,
+        type: 3}
+      propertyPath: physicsMonster
+      value: 
+      objectReference: {fileID: 1636536252}
     m_RemovedComponents:
     - {fileID: 146472914066914599, guid: 02162763acc61c740ad3744fed516e7a, type: 3}
     m_RemovedGameObjects: []
@@ -2750,6 +2915,18 @@ MonoBehaviour:
   lastTimeSpellUsed: 0
   maxSpellRange: 50
   blockCast: 0
+--- !u!114 &1986510646 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5981587772829161373, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+    type: 3}
+  m_PrefabInstance: {fileID: 2060292065}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1986510617}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e694f88333699841bab661508a77d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1993588146
 GameObject:
   m_ObjectHideFlags: 0
@@ -3075,11 +3252,26 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 1986510628}
+    - target: {fileID: 1401021734915343714, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerReference
+      value: 
+      objectReference: {fileID: 1483273395}
     - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: follow
       value: 
       objectReference: {fileID: 1986510628}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: combatMonster
+      value: 
+      objectReference: {fileID: 1986510630}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: physicsMonster
+      value: 
+      objectReference: {fileID: 1986510629}
     - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: combatMonster
@@ -3090,6 +3282,11 @@ PrefabInstance:
       propertyPath: physicsMonster
       value: 
       objectReference: {fileID: 1986510629}
+    - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerStatistics
+      value: 
+      objectReference: {fileID: 1986510646}
     - target: {fileID: 4934952900591716185, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -3291,6 +3488,18 @@ MonoBehaviour:
   lastTimeSpellUsed: 0
   maxSpellRange: 50
   blockCast: 0
+--- !u!114 &2094999041 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5981587772829161373, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+    type: 3}
+  m_PrefabInstance: {fileID: 1554935614}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2094999011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e694f88333699841bab661508a77d36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &735345339286658110
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3319,11 +3528,26 @@ PrefabInstance:
       propertyPath: follow
       value: 
       objectReference: {fileID: 790079945}
+    - target: {fileID: 1401021734915343714, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerReference
+      value: 
+      objectReference: {fileID: 790079935}
     - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: follow
       value: 
       objectReference: {fileID: 790079945}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: combatMonster
+      value: 
+      objectReference: {fileID: 790079947}
+    - target: {fileID: 2362950411181290383, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: physicsMonster
+      value: 
+      objectReference: {fileID: 790079946}
     - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: combatMonster
@@ -3334,6 +3558,11 @@ PrefabInstance:
       propertyPath: physicsMonster
       value: 
       objectReference: {fileID: 790079946}
+    - target: {fileID: 3182442221184612767, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
+        type: 3}
+      propertyPath: playerStatistics
+      value: 
+      objectReference: {fileID: 790079963}
     - target: {fileID: 4934952900591716185, guid: 1ddbe6a5c4028274ba9251eb9b3f2813,
         type: 3}
       propertyPath: m_LocalPosition.x
