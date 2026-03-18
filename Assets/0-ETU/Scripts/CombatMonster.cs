@@ -63,6 +63,12 @@ public class CombatMonster : NetworkBehaviour
 
     public bool TryCastSpell(float distance)
 	{
+		if (follow.cible != null && PlayerStatistics.AreAllies(follow.monsterReference, follow.cible))
+		{
+			Debug.Log("SECURITY: ally target detected, cancel cast");
+			follow.cible = null;
+			return false;
+		}
 		if (follow.monsterReference == null || follow.monsterReference.playerShooting == null || follow.monsterReference.playerClasses == null || follow.IsMovementBlocked() || physicsMonster.IsPushLocked || (follow.dodgeMonster != null && follow.dodgeMonster.IsDodging))
 			return false;
 
@@ -86,8 +92,8 @@ public class CombatMonster : NetworkBehaviour
 				lastTimeAutoAttackUsed = Time.time;
 				return true;
 			}
-			Debug.Log("Spell " + i + " CD = " + spellCooldowns[i]);
-			Debug.Log("distance = " + distance + " range = " + currentSpellRange);
+			//Debug.Log("Spell " + i + " CD = " + spellCooldowns[i]);
+			//Debug.Log("distance = " + distance + " range = " + currentSpellRange);
 		}
 		TryAutoAttack(distance);
     	return false;
@@ -95,6 +101,13 @@ public class CombatMonster : NetworkBehaviour
 
     private void TryAutoAttack(float distance)
 	{
+		if (follow.cible != null && PlayerStatistics.AreAllies(follow.monsterReference, follow.cible))
+		{
+			Debug.Log("SECURITY: ally target detected, cancel cast");
+			follow.cible = null;
+			return;
+		}
+		
 		if (follow.monsterReference == null || follow.monsterReference.playerShooting == null || follow.monsterReference.playerClasses == null || follow.IsMovementBlocked() || physicsMonster.IsPushLocked)
 			return;
 
