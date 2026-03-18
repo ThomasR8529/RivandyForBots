@@ -42,6 +42,7 @@ public class Follow : NetworkBehaviour
     private Vector3 previousPosition;
     private Coroutine activateFaceBack;
     private float stationaryTimer = 0f;
+    private float targetEvaluationTimer = 0f;
 
     public Billboard billboardEntity;
     public string twitchName;
@@ -184,9 +185,14 @@ public class Follow : NetworkBehaviour
                 defendTarget = null;
             }
 
-            if (IsServer && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer) && cible == null && defendTarget == null && !IsMovementBlocked())
+            if (IsServer && defendTarget == null && !IsMovementBlocked())
             {
-                FindNearestTarget();
+                targetEvaluationTimer += Time.deltaTime;
+                if (cible == null || targetEvaluationTimer >= 1f)
+                {
+                    FindNearestTarget();
+                    targetEvaluationTimer = 0f;
+                }
             }
             if (!IsMovementBlocked() && !physicsMonster.IsPushing && agent.enabled && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer) && cible == null && GameController.instance.playerReference.playerStatistics.playerInstanciated)
             {
@@ -405,18 +411,18 @@ public class Follow : NetworkBehaviour
         if (monsterReference == null || monsterReference.playerStatistics == null) return;
         if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
         if (activateFaceBack != null) StopCoroutine(activateFaceBack);
-#if UNITY_SERVER
-			PlayerReference otherRef = other.GetComponent<PlayerReference>();
-			if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
-			{
-				return;
-			}
+// #if UNITY_SERVER
+// 			PlayerReference otherRef = other.GetComponent<PlayerReference>();
+// 			if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
+// 			{
+// 				return;
+// 			}
 
-			if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
-				cible = otherRef;
-				CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
-			}
-#endif
+// 			if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
+// 				cible = otherRef;
+// 				CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
+// 			}
+// #endif
     }
 
 
@@ -424,26 +430,19 @@ public class Follow : NetworkBehaviour
 #if UNITY_SERVER
 	private void OnTriggerStay(Collider other)
 	{
-		if (monsterReference == null || monsterReference.playerStatistics == null)
-		{
-			return;
-		}
-		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters)
-		{
-			return;
-		}
-		if (activateFaceBack != null)
-			StopCoroutine(activateFaceBack);
+		if (monsterReference == null || monsterReference.playerStatistics == null) return;
+		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
+		if (activateFaceBack != null) StopCoroutine(activateFaceBack);
 
-		PlayerReference otherRef = other.GetComponent<PlayerReference>();
-		if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
-		{
-			return;
-		}
-        if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
-			cible = otherRef;
-			CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
-		}
+		// PlayerReference otherRef = other.GetComponent<PlayerReference>();
+		// if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
+		// {
+		// 	return;
+		// }
+        // if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
+		// 	cible = otherRef;
+		// 	CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
+		// }
 	}
 #endif
 
@@ -468,37 +467,101 @@ public class Follow : NetworkBehaviour
         }
     }
 
+    // public void FindNearestTarget()
+    // {
+    //     if (cible != null)
+    //         return;
+
+    //     float minDistance = float.MaxValue;
+    //     PlayerReference nearestTarget = null;
+    //     PlayerReference[] candidates = FindObjectsOfType<PlayerReference>();
+
+    //     foreach (var candidate in candidates)
+    //     {
+    //         if (candidate.playerStatistics == null)
+    //             continue;
+    //         if (candidate.playerStatistics.playerStatData.health <= 0f)
+    //             continue;
+    //         if (monsterReference != null && monsterReference == candidate)
+    //             continue;
+    //         if (monsterReference != null && monsterReference.playerStatistics != null && candidate.playerStatistics != null && monsterReference.playerStatistics.IsSameTeam(candidate.playerStatistics))
+    //             continue;
+
+    //         float distance = Vector3.Distance(candidate.transform.position, agent.transform.position);
+    //         if (distance < minDistance)
+    //         {
+    //             minDistance = distance;
+    //             nearestTarget = candidate;
+    //         }
+    //     }
+
+    //     if (nearestTarget != null)
+    //     {
+    //         cible = nearestTarget;
+    //         CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
+    //     }
+    // }
+
     public void FindNearestTarget()
     {
-        if (cible != null)
-            return;
+        PlayerReference bestTarget = null;
+        PlayerReference closestTarget = null;
+        PlayerReference closestLowHealthTarget = null;
 
         float minDistance = float.MaxValue;
-        PlayerReference nearestTarget = null;
+        float minLowHealthDistance = float.MaxValue;
+        float maxDistanceForLowHealth = 25f; // Portée max pour aller achever quelqu'un
+
         PlayerReference[] candidates = FindObjectsOfType<PlayerReference>();
 
         foreach (var candidate in candidates)
         {
-            if (candidate.playerStatistics == null)
-                continue;
-            if (candidate.playerStatistics.playerStatData.health <= 0f)
-                continue;
-            if (monsterReference != null && monsterReference == candidate)
-                continue;
-            if (monsterReference != null && monsterReference.playerStatistics != null && candidate.playerStatistics != null && monsterReference.playerStatistics.IsSameTeam(candidate.playerStatistics))
-                continue;
+            // 1. Sécurités de base
+            if (candidate.playerStatistics == null) continue;
+            if (!candidate.playerStatistics.playerInstanciated) continue;
+            if (candidate.playerStatistics.playerStatData.health <= 0f) continue;
+            if (monsterReference != null && monsterReference == candidate) continue;
+            if (monsterReference != null && PlayerStatistics.AreAllies(monsterReference, candidate)) continue;
 
-            float distance = Vector3.Distance(candidate.transform.position, agent.transform.position);
-            if (distance < minDistance)
+            // 2. Calcul de la distance
+            float rawDistance = Vector3.Distance(candidate.transform.position, agent.transform.position);
+            float distanceForEval = rawDistance;
+
+            // 3. LE FOCUS : Si c'est déjà ma cible, je lui donne un "bonus" de proximité de 3 mètres
+            // Cela empêche le bot de changer de cible frénétiquement si deux guerriers avancent côte à côte
+            if (cible == candidate) 
             {
-                minDistance = distance;
-                nearestTarget = candidate;
+                distanceForEval -= 3f;
+            }
+
+            // Règle A : La cible globale la plus proche
+            if (distanceForEval < minDistance)
+            {
+                minDistance = distanceForEval;
+                closestTarget = candidate;
+            }
+
+            // Règle B : Opportunité d'achèvement (Cible à moins de 25% de vie)
+            float maxHp = candidate.playerStatistics.playerStatData.maxHealth;
+            float currentHp = candidate.playerStatistics.playerStatData.health;
+            
+            if (maxHp > 0 && (currentHp / maxHp) <= 0.25f && rawDistance <= maxDistanceForLowHealth)
+            {
+                if (distanceForEval < minLowHealthDistance)
+                {
+                    minLowHealthDistance = distanceForEval;
+                    closestLowHealthTarget = candidate;
+                }
             }
         }
 
-        if (nearestTarget != null)
+        // LE CHOIX : On prend le blessé en priorité, sinon on prend le plus proche
+        bestTarget = closestLowHealthTarget != null ? closestLowHealthTarget : closestTarget;
+
+        // On applique la nouvelle cible si elle est différente de l'actuelle
+        if (bestTarget != null && cible != bestTarget)
         {
-            cible = nearestTarget;
+            cible = bestTarget;
             CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
         }
     }
