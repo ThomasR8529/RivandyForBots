@@ -472,7 +472,6 @@ public class Follow : NetworkBehaviour
             float distanceForEval = rawDistance;
 
             // 3. LE FOCUS : Si c'est déjà ma cible, je lui donne un "bonus" de proximité de 3 mètres
-            // Cela empêche le bot de changer de cible frénétiquement si deux guerriers avancent côte à côte
             if (cible == candidate) 
             {
                 distanceForEval -= 3f;
