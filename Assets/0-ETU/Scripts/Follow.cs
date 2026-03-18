@@ -411,18 +411,6 @@ public class Follow : NetworkBehaviour
         if (monsterReference == null || monsterReference.playerStatistics == null) return;
         if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
         if (activateFaceBack != null) StopCoroutine(activateFaceBack);
-// #if UNITY_SERVER
-// 			PlayerReference otherRef = other.GetComponent<PlayerReference>();
-// 			if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
-// 			{
-// 				return;
-// 			}
-
-// 			if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
-// 				cible = otherRef;
-// 				CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
-// 			}
-// #endif
     }
 
 
@@ -434,15 +422,6 @@ public class Follow : NetworkBehaviour
 		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
 		if (activateFaceBack != null) StopCoroutine(activateFaceBack);
 
-		// PlayerReference otherRef = other.GetComponent<PlayerReference>();
-		// if (monsterReference != null && otherRef != null && PlayerStatistics.AreAllies(monsterReference, otherRef))
-		// {
-		// 	return;
-		// }
-        // if (cible == null && otherRef != null && otherRef.networkObject.IsSpawned)		{
-		// 	cible = otherRef;
-		// 	CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
-		// }
 	}
 #endif
 
@@ -466,41 +445,6 @@ public class Follow : NetworkBehaviour
             FaceBack();
         }
     }
-
-    // public void FindNearestTarget()
-    // {
-    //     if (cible != null)
-    //         return;
-
-    //     float minDistance = float.MaxValue;
-    //     PlayerReference nearestTarget = null;
-    //     PlayerReference[] candidates = FindObjectsOfType<PlayerReference>();
-
-    //     foreach (var candidate in candidates)
-    //     {
-    //         if (candidate.playerStatistics == null)
-    //             continue;
-    //         if (candidate.playerStatistics.playerStatData.health <= 0f)
-    //             continue;
-    //         if (monsterReference != null && monsterReference == candidate)
-    //             continue;
-    //         if (monsterReference != null && monsterReference.playerStatistics != null && candidate.playerStatistics != null && monsterReference.playerStatistics.IsSameTeam(candidate.playerStatistics))
-    //             continue;
-
-    //         float distance = Vector3.Distance(candidate.transform.position, agent.transform.position);
-    //         if (distance < minDistance)
-    //         {
-    //             minDistance = distance;
-    //             nearestTarget = candidate;
-    //         }
-    //     }
-
-    //     if (nearestTarget != null)
-    //     {
-    //         cible = nearestTarget;
-    //         CombatMonster.ApplyCibleClientRpc(cible.networkObject, agent.transform.position);
-    //     }
-    // }
 
     public void FindNearestTarget()
     {
