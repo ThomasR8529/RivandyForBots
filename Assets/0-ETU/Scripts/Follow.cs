@@ -185,6 +185,7 @@ public class Follow : NetworkBehaviour
                 defendTarget = null;
             }
 
+            // L'IA fonctionne dans tous les modes de jeu
             if (IsServer && defendTarget == null && !IsMovementBlocked())
             {
                 targetEvaluationTimer += Time.deltaTime;
@@ -194,6 +195,7 @@ public class Follow : NetworkBehaviour
                     targetEvaluationTimer = 0f;
                 }
             }
+            
             if (!IsMovementBlocked() && !physicsMonster.IsPushing && agent.enabled && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer) && cible == null && GameController.instance.playerReference.playerStatistics.playerInstanciated)
             {
                 CombatMonster.AskNearestTargetServerRpc();
@@ -202,19 +204,45 @@ public class Follow : NetworkBehaviour
 
         if (TargetXform != null)
         {
+            // SÉCURITÉ : Annule la cible si c'est devenu un allié
+            if (cible != null && PlayerStatistics.AreAllies(monsterReference, cible))
+            {
+                cible = null;
+                if (agent.isActiveAndEnabled) agent.ResetPath();
+#if UNITY_SERVER
+                CombatMonster.ApplyNullCibleClientRpc();
+#endif
+                return;
+            }
+            
+            // SÉCURITÉ : Annule la cible si elle est morte ou déconnectée
             if (cible != null && (cible.playerStatistics.playerStatData.health <= 0f || !cible.playerStatistics.playerInstanciated))
             {
                 cible = null;
                 if (agent.isActiveAndEnabled) agent.ResetPath();
 #if UNITY_SERVER
-					CombatMonster.ApplyNullCibleClientRpc();
+                CombatMonster.ApplyNullCibleClientRpc();
 #endif
             }
+            
             if (TargetXform != null)
             {
                 float distance = Vector3.Distance(TargetXform.position, agent.transform.position);
 
-                // IMPORTANT: on empÃªche tout cast pendant push/hold
+                // --- GESTION DE LA PRUDENCE (LOW HEALTH / KITING) ---
+                float currentHealth = monsterReference.playerStatistics.playerStatData.health;
+                float maxHealth = monsterReference.playerStatistics.playerStatData.maxHealth;
+                bool isLowHealth = maxHealth > 0 && (currentHealth / maxHealth) <= 0.25f; // Fuite si <= 25% PV
+
+                float preferredDistance = originalStoppingDistance * 0.9f;
+                
+                if (isLowHealth)
+                {
+                    // Si on va mourir, on veut se maintenir très loin (25 mètres minimum)
+                    preferredDistance = Mathf.Max(originalStoppingDistance * 1.5f, 25f);
+                }
+
+                // IMPORTANT: on empêche tout cast pendant push/hold
                 if (IsServer && !physicsMonster.IsPushing && !isRetreat)
                 {
                     if (Time.time > CombatMonster.lastTimeSpellUsed + CombatMonster.timeBetweenSpells)
@@ -223,41 +251,40 @@ public class Follow : NetworkBehaviour
                     }
                 }
 
+                // --- GESTION DU DÉPLACEMENT (FUITE, APPROCHE, ARRÊT) ---
                 if (agent.isActiveAndEnabled && !physicsMonster.IsPushing && !IsMovementBlocked())
                 {
-                    float preferredDistance = originalStoppingDistance * 0.9f;
-
-                    if (agent.isActiveAndEnabled && !physicsMonster.IsPushing && !IsMovementBlocked())
+                    // FUITE : Si l'ennemi est trop près ET (on est un tireur OU on a peu de vie)
+                    if (distance < preferredDistance * CombatMonster.retreatThresholdRatio && (doBackward || isLowHealth))
                     {
-                        if (distance < preferredDistance * CombatMonster.retreatThresholdRatio && doBackward)
+                        isRetreat = true;
+                        agent.speed = isLowHealth ? originalSpeed : originalSpeed;
+                        
+                        if (dodgeMonster != null)
+                            dodgeMonster.TriggerSmartRetreat();
+                        else
+                            RetreatFromTarget(10f); // Demande un grand saut en arrière
+                    }
+                    // APPROCHE : Si l'ennemi est trop loin
+                    else if (distance > preferredDistance * CombatMonster.approachThresholdRatio)
+                    {
+                        if (!agent.isOnNavMesh)
                         {
-                            isRetreat = true;
-                            agent.speed = originalSpeed / 2f;
-                            if (dodgeMonster != null)
-                                dodgeMonster.TriggerSmartRetreat();
-                            else
-                                RetreatFromTarget();   // fallback si DodgeMonster absent
-                        }
-                        else if (distance > preferredDistance * CombatMonster.approachThresholdRatio)
-                        {
-                            if (!agent.isOnNavMesh)
-                            {
-                                StartCoroutine(AttemptRepositionToNavMesh());
-                            }
-                            else
-                            {
-                                agent.speed = originalSpeed;
-                                agent.SetDestination(TargetXform.position);
-                                isRetreat = false;
-                            }
+                            StartCoroutine(AttemptRepositionToNavMesh());
                         }
                         else
                         {
-                            // Zone idÃ©ale
-                            agent.ResetPath();
+                            agent.speed = originalSpeed;
+                            agent.SetDestination(TargetXform.position);
                             isRetreat = false;
-                            animator.SetBool("isWalking", false);
                         }
+                    }
+                    // POSITION IDÉALE : On s'arrête et on tire
+                    else
+                    {
+                        agent.ResetPath();
+                        isRetreat = false;
+                        animator.SetBool("isWalking", false);
                     }
                 }
             }
@@ -271,7 +298,7 @@ public class Follow : NetworkBehaviour
         if (monsterReference == null)
             return;
 
-        // S'il est dans une position d'arrÃªt
+        // S'il est dans une position d'arrêt
         if (monsterReference.playerStatistics.isBehindWho == null && !agent.enabled && !physicsMonster.IsPushing) agent.enabled = true;
 
         if (IsMovementBlocked())
@@ -285,11 +312,11 @@ public class Follow : NetworkBehaviour
             }
             animator.SetBool("isWalking", false);
 #if UNITY_SERVER
-				if (monsterReference.playerStatistics.isBehindWho != null || monsterReference.playerStatistics.playerStatData.health <= 0f)
-				{
-					CombatMonster.ApplyNullCibleClientRpc();
-					cible = null;
-				}
+            if (monsterReference.playerStatistics.isBehindWho != null || monsterReference.playerStatistics.playerStatData.health <= 0f)
+            {
+                CombatMonster.ApplyNullCibleClientRpc();
+                cible = null;
+            }
 #endif
 
             if (monsterReference.playerStatistics.playerStatData.health <= 0f && !isDead)
@@ -304,7 +331,7 @@ public class Follow : NetworkBehaviour
 
                 if (Run.instance.CPUcontroller != null) Run.instance.CPUcontroller.zone.monsterNumber -= 1;
 #if UNITY_SERVER
-					NetworkManager.Destroy(monsterReference.gameObject, 2f);
+                NetworkManager.Destroy(monsterReference.gameObject, 2f);
 #endif
             }
         }
@@ -333,7 +360,6 @@ public class Follow : NetworkBehaviour
             if (agent.enabled && !IsMovementBlocked())
                 FaceTarget();
         }
-        //Debug.Log("TargetXform: ",TargetXform);
     }
 
     private IEnumerator AttemptRepositionToNavMesh()
@@ -357,26 +383,48 @@ public class Follow : NetworkBehaviour
         }
     }
 
-    private void RetreatFromTarget(float retreatDistance = 2f)
+    // private void RetreatFromTarget(float retreatDistance = 2f)
+    // {
+    //     if (TargetXform == null || !agent.enabled || IsMovementBlocked()) return;
+
+    //     Vector3 targetDirection = agent.transform.position - TargetXform.position;
+    //     targetDirection.y = 0f;
+
+    //     if (targetDirection == Vector3.zero) return;
+
+    //     Vector3 retreatDirection = targetDirection.normalized;
+    //     Vector3 retreatTargetPosition = agent.transform.position + retreatDirection * retreatDistance;
+
+    //     if (NavMesh.SamplePosition(retreatTargetPosition, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+    //     {
+    //         Debug.DrawLine(agent.transform.position, hit.position, Color.blue, 0.5f);
+    //         agent.SetDestination(hit.position);
+    //     }
+    //     else
+    //     {
+    //         Debug.LogWarning("No valid NavMesh point found for retreat.");
+    //     }
+    // }
+
+    private void RetreatFromTarget(float retreatDistance = 10f)
     {
         if (TargetXform == null || !agent.enabled || IsMovementBlocked()) return;
 
-        Vector3 targetDirection = agent.transform.position - TargetXform.position;
-        targetDirection.y = 0f;
+        // On calcule la direction depuis l'ENNEMI vers NOUS
+        Vector3 fromTargetToMe = agent.transform.position - TargetXform.position;
+        fromTargetToMe.y = 0f;
 
-        if (targetDirection == Vector3.zero) return;
+        if (fromTargetToMe == Vector3.zero) return;
 
-        Vector3 retreatDirection = targetDirection.normalized;
-        Vector3 retreatTargetPosition = agent.transform.position + retreatDirection * retreatDistance;
+        Vector3 retreatDirection = fromTargetToMe.normalized;
+        
+        // Point de fuite = Position de l'ennemi + (Direction * (Distance actuelle + 10 mètres))
+        // Cette destination est beaucoup plus stable pour le NavMesh !
+        Vector3 retreatTargetPosition = TargetXform.position + retreatDirection * (fromTargetToMe.magnitude + retreatDistance);
 
-        if (NavMesh.SamplePosition(retreatTargetPosition, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(retreatTargetPosition, out NavMeshHit hit, 5f, NavMesh.AllAreas))
         {
-            Debug.DrawLine(agent.transform.position, hit.position, Color.blue, 0.5f);
             agent.SetDestination(hit.position);
-        }
-        else
-        {
-            Debug.LogWarning("No valid NavMesh point found for retreat.");
         }
     }
 
@@ -411,7 +459,6 @@ public class Follow : NetworkBehaviour
         if (monsterReference == null || monsterReference.playerStatistics == null) return;
         if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
         if (activateFaceBack != null) StopCoroutine(activateFaceBack);
-
     }
 
 
