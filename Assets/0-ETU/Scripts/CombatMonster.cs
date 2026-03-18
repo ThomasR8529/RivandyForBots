@@ -5,6 +5,9 @@ using Unity.Netcode;
 using SurvivorMode;
 using PhysicsBasedCharacterController;
 
+[RequireComponent(typeof(Follow))]
+[RequireComponent(typeof(PhysicsMonster))]
+
 public class CombatMonster : NetworkBehaviour
 
 {
@@ -60,7 +63,13 @@ public class CombatMonster : NetworkBehaviour
 
     public bool TryCastSpell(float distance)
 	{
-		if (follow.monsterReference == null || follow.monsterReference.playerShooting == null || follow.monsterReference.playerClasses == null || follow.IsMovementBlocked() || physicsMonster.IsPushLocked)
+		if (follow.cible != null && PlayerStatistics.AreAllies(follow.monsterReference, follow.cible))
+		{
+			Debug.Log("SECURITY: ally target detected, cancel cast");
+			follow.cible = null;
+			return false;
+		}
+		if (follow.monsterReference == null || follow.monsterReference.playerShooting == null || follow.monsterReference.playerClasses == null || follow.IsMovementBlocked() || physicsMonster.IsPushLocked || (follow.dodgeMonster != null && follow.dodgeMonster.IsDodging))
 			return false;
 
 		var spells = follow.monsterReference.playerClasses.spells;
@@ -83,12 +92,22 @@ public class CombatMonster : NetworkBehaviour
 				lastTimeAutoAttackUsed = Time.time;
 				return true;
 			}
+			//Debug.Log("Spell " + i + " CD = " + spellCooldowns[i]);
+			//Debug.Log("distance = " + distance + " range = " + currentSpellRange);
 		}
-		return false;
+		TryAutoAttack(distance);
+    	return false;
 	}
 
     private void TryAutoAttack(float distance)
 	{
+		if (follow.cible != null && PlayerStatistics.AreAllies(follow.monsterReference, follow.cible))
+		{
+			Debug.Log("SECURITY: ally target detected, cancel cast");
+			follow.cible = null;
+			return;
+		}
+		
 		if (follow.monsterReference == null || follow.monsterReference.playerShooting == null || follow.monsterReference.playerClasses == null || follow.IsMovementBlocked() || physicsMonster.IsPushLocked)
 			return;
 
