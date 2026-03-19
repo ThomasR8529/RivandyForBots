@@ -12,11 +12,14 @@ using Unity.Netcode.Components;
 
 [RequireComponent(typeof(CombatMonster))]
 [RequireComponent(typeof(PhysicsMonster))]
+[RequireComponent(typeof(DashBots))]
 
 public class Follow : NetworkBehaviour
 {
     public CombatMonster CombatMonster;
     public PhysicsMonster physicsMonster;
+
+    public DashBots dashBots;
 
     // === Champs généraux ===
     [SerializeField] public NavMeshAgent agent;
@@ -61,6 +64,7 @@ public class Follow : NetworkBehaviour
     {
         CombatMonster = GetComponent<CombatMonster>();
         physicsMonster = GetComponent<PhysicsMonster>();
+        dashBots = GetComponent<DashBots>();
     }
 
     public override void OnNetworkSpawn()
@@ -137,7 +141,14 @@ public class Follow : NetworkBehaviour
     }
 
     private void Update()
-    {
+    {   
+        if (dashBots != null && dashBots.IsDashing)
+        {
+            if (agent.isActiveAndEnabled)
+                agent.ResetPath();
+            return;
+        }
+
         if (monsterReference != null)
         {
             if (monsterReference.playerStatistics.StunImmunitySeconds > 0f)
@@ -269,6 +280,25 @@ public class Follow : NetworkBehaviour
                     else if (distance > preferredDistance * CombatMonster.approachThresholdRatio)
                     {
                         if (!agent.isOnNavMesh)
+                        if (distance < preferredDistance * CombatMonster.retreatThresholdRatio && doBackward)
+                        {
+                            isRetreat = true;
+                                if (dashBots != null && !dashBots.IsDashing)
+                                {
+                                    if (dashBots.DashAwayFromTarget(TargetXform))
+                                    {
+                                        if (agent.isActiveAndEnabled)
+                                            agent.ResetPath();
+                                        return;
+                                    }
+                                }
+                            agent.speed = originalSpeed / 2f;
+                            if (dodgeMonster != null)
+                                dodgeMonster.TriggerSmartRetreat();
+                            else
+                                RetreatFromTarget();   // fallback si DodgeMonster absent
+                        }
+                        else if (distance > preferredDistance * CombatMonster.approachThresholdRatio)
                         {
                             StartCoroutine(AttemptRepositionToNavMesh());
                         }
