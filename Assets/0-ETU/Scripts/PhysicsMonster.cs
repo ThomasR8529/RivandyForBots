@@ -272,6 +272,16 @@ public class PhysicsMonster : NetworkBehaviour
         MoveTowardsFromPoint(caster.transform.position, power, seconds);
     }
 
+    /// <summary>
+    /// Stoppe immédiatement tous les pushes actifs (utilisé par Follow pour
+    /// arrêter une charge à l'impact).
+    /// </summary>
+    public void StopCharge()
+    {
+        activePushes.Clear();
+        pushReleaseAt = Time.time; // libère immédiatement l'état post-push
+    }
+
     [ClientRpc]
     public void SyncMonsterPositionClientRpc(Vector3 position)
     {
