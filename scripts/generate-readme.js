@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const dir = "Assets/Scripts";
+const dir = "Assets/0-ETU/Scripts";
 
 // 🔍 lire tous les fichiers .cs
 const files = fs.readdirSync(dir).filter(f => f.endsWith(".cs"));
