@@ -4,23 +4,33 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   generate:
     if: github.actor != 'github-actions'
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - run: node scripts/generate-readme.js
+      - name: Debug files
+        run: ls -R
 
-      - run: |
+      - name: Generate README
+        run: node scripts/generate-readme.js
+
+      - name: Commit README
+        run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add README.md
-          git commit -m "Auto README from Scripts folder" || echo "No changes"
+          git commit -m "Auto-generate README" || echo "No changes"
           git push

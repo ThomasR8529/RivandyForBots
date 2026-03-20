@@ -3,6 +3,11 @@ const path = require("path");
 
 const dir = "Assets/0-ETU/Scripts";
 
+if (!fs.existsSync(baseDir)) {
+  console.error("❌ Dossier introuvable :", baseDir);
+  process.exit(1);
+}
+
 // 🔍 lire tous les fichiers .cs
 const files = fs.readdirSync(dir).filter(f => f.endsWith(".cs"));
 
