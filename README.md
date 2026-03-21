@@ -14,6 +14,19 @@
   - ApplyNullCibleClientRpc
   - AskNearestTargetServerRpc
 
+### 📜 DashBots
+- File: `DashBots.cs`
+- Methods:
+  - DashAwayFromTarget
+  - Update
+  - Update
+  - ShouldDash
+  - Dash
+  - CanDash
+  - DashAction
+  - DashAction
+  - PlayAnimationClientRpc
+
 ### 📜 DodgeMonster
 - File: `DodgeMonster.cs`
 - Methods:
@@ -38,6 +51,7 @@
   - ResyncMonsterPositionRoutine
   - Update
   - AttemptRepositionToNavMesh
+  - RetreatFromTarget
   - RetreatFromTarget
   - StartChargeImpactWatch
   - ChargeImpactRoutine
@@ -233,8 +247,3 @@
 - File: `StartServerLocal.cs`
 - Methods:
   - startServerInSeconds
-
-## 🚀 How to Run
-1. Open with Unity Hub
-2. Launch main scene
-3. Press Play
