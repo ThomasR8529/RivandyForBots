@@ -1,7 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 
-const dir = "Assets/Scripts";
+const dir = "Assets/0-ETU/Scripts";
+
+if (!fs.existsSync(dir)) {
+  console.error("❌ Dossier introuvable :", dir);
+  process.exit(1);
+}
 
 // 🔍 lire tous les fichiers .cs
 const files = fs.readdirSync(dir).filter(f => f.endsWith(".cs"));
@@ -31,12 +36,5 @@ files.forEach(file => {
     content += `  - ${m}\n`;
   });
 });
-
-content += `
-## 🚀 How to Run
-1. Open with Unity Hub
-2. Launch main scene
-3. Press Play
-`;
 
 fs.writeFileSync("README.md", content);
