@@ -37,11 +37,4 @@ files.forEach(file => {
   });
 });
 
-content += `
-## 🚀 How to Run
-1. Open with Unity Hub
-2. Launch main scene
-3. Press Play
-`;
-
 fs.writeFileSync("README.md", content);
