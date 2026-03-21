@@ -31,7 +31,7 @@ public class Follow : NetworkBehaviour
     public bool isDead;
     [Header("Cibleur: le transform qui gÃ¨re le lancer pour tirer le projectile")]
     public Transform cibleur;
-    [Header("doBackward: est-ce-que le monstre doit reculer s'il est au corps Ã  corps ? ")]
+    [Header("doBackward: est-ce-que le monstre doit reculer s'il est au corps Ã  corps ? ")]
     public bool doBackward;
 
     [SerializeField] private LayerMask targetableLayers = (1 << 9) | (1 << 3) | (1 << 5);
@@ -45,8 +45,6 @@ public class Follow : NetworkBehaviour
     [Header("=== Charge ===")]
     [Tooltip("Distance (m) à laquelle la charge s'arrête quand le monstre touche sa cible")]
     [SerializeField] private float chargeImpactDistance = 1.5f;
- 
-    // Coroutine active de surveillance de charge
     private Coroutine chargeImpactCoroutine;
 
     private Vector3 previousPosition;
@@ -93,7 +91,6 @@ public class Follow : NetworkBehaviour
             stats.maxHealth = Mathf.Max(1f, stats.maxHealth);
             stats.health = Mathf.Max(1f, stats.health);
             monsterReference.playerStatistics.playerStatData = stats;
-            // Keep existing speed behavior
             agent.speed += agent.speed * (Run.instance.CPUcontroller.zone.currentWave * 0.1f);
             agent.speed = agent.speed > 16 ? 16 : agent.speed;
             originalSpeed = agent.speed;
@@ -105,18 +102,15 @@ public class Follow : NetworkBehaviour
         }
 
         if (SurvivorModifiers.defendStoneHeartThisWave && StoneHeartTarget.Instance != null)
-        {
             defendTarget = StoneHeartTarget.Instance.transform;
-        }
         else
-        {
             defendTarget = null;
-        }
+
         dodgeMonster = GetComponent<DodgeMonster>();
 
 #if UNITY_SERVER
-		previousPosition = agent.transform.position;
-		StartCoroutine(ResyncMonsterPositionRoutine());
+        previousPosition = agent.transform.position;
+        StartCoroutine(ResyncMonsterPositionRoutine());
 #endif
     }
 
@@ -129,7 +123,6 @@ public class Follow : NetworkBehaviour
     {
         while (true)
         {
-            // tant quâ€™on pousse, on ne corrige pas la position
             if (!physicsMonster.IsPushing && agent.enabled)
             {
                 if (!agent.isOnNavMesh)
@@ -148,12 +141,13 @@ public class Follow : NetworkBehaviour
     }
 
     private void Update()
-    {   
+    {
+        // Si le bot est en train de dasher, on réinitialise le path mais on ne bloque pas le reste
         if (dashBots != null && dashBots.IsDashing)
         {
             if (agent.isActiveAndEnabled)
                 agent.ResetPath();
-            return;
+            return; // pendant le dash, Follow ne pilote pas le déplacement
         }
 
         if (monsterReference != null)
@@ -193,17 +187,11 @@ public class Follow : NetworkBehaviour
 
         if (!Run.instance.CPUcontroller.zone.isGameEnded)
         {
-            // Prefer heart target if event active
             if (SurvivorModifiers.defendStoneHeartThisWave && StoneHeartTarget.Instance != null)
-            {
                 defendTarget = StoneHeartTarget.Instance.transform;
-            }
             else
-            {
                 defendTarget = null;
-            }
 
-            // L'IA fonctionne dans tous les modes de jeu
             if (IsServer && defendTarget == null && !IsMovementBlocked())
             {
                 targetEvaluationTimer += Time.deltaTime;
@@ -213,8 +201,10 @@ public class Follow : NetworkBehaviour
                     targetEvaluationTimer = 0f;
                 }
             }
-            
-            if (!IsMovementBlocked() && !physicsMonster.IsPushing && agent.enabled && (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer) && cible == null && GameController.instance.playerReference.playerStatistics.playerInstanciated)
+
+            if (!IsMovementBlocked() && !physicsMonster.IsPushing && agent.enabled &&
+                (Run.instance.CPUcontroller.zone.serverMode == GameMode.Survivor || Run.instance.CPUcontroller.zone.serverMode == GameMode.Streamer) &&
+                cible == null && GameController.instance.playerReference.playerStatistics.playerInstanciated)
             {
                 CombatMonster.AskNearestTargetServerRpc();
             }
@@ -222,7 +212,7 @@ public class Follow : NetworkBehaviour
 
         if (TargetXform != null)
         {
-            // SÉCURITÉ : Annule la cible si c'est devenu un allié
+            // Sécurité : annule la cible si elle est devenue un allié
             if (cible != null && PlayerStatistics.AreAllies(monsterReference, cible))
             {
                 cible = null;
@@ -232,8 +222,8 @@ public class Follow : NetworkBehaviour
 #endif
                 return;
             }
-            
-            // SÉCURITÉ : Annule la cible si elle est morte ou déconnectée
+
+            // Sécurité : annule la cible si elle est morte ou déconnectée
             if (cible != null && (cible.playerStatistics.playerStatData.health <= 0f || !cible.playerStatistics.playerInstanciated))
             {
                 cible = null;
@@ -242,70 +232,54 @@ public class Follow : NetworkBehaviour
                 CombatMonster.ApplyNullCibleClientRpc();
 #endif
             }
-            
+
             if (TargetXform != null)
             {
                 float distance = Vector3.Distance(TargetXform.position, agent.transform.position);
 
-                // --- GESTION DE LA PRUDENCE (LOW HEALTH / KITING) ---
+                // Gestion de la prudence (low health / kiting)
                 float currentHealth = monsterReference.playerStatistics.playerStatData.health;
-                float maxHealth = monsterReference.playerStatistics.playerStatData.maxHealth;
-                bool isLowHealth = maxHealth > 0 && (currentHealth / maxHealth) <= 0.25f; // Fuite si <= 25% PV
+                float maxHealth     = monsterReference.playerStatistics.playerStatData.maxHealth;
+                bool  isLowHealth   = maxHealth > 0 && (currentHealth / maxHealth) <= 0.25f;
 
                 float preferredDistance = originalStoppingDistance * 0.9f;
-                
                 if (isLowHealth)
-                {
-                    // Si on va mourir, on veut se maintenir très loin (25 mètres minimum)
                     preferredDistance = Mathf.Max(originalStoppingDistance * 1.5f, 25f);
-                }
 
-                // IMPORTANT: on empêche tout cast pendant push/hold
+                // Cast de sorts (bloqué pendant push/retreat)
                 if (IsServer && !physicsMonster.IsPushing && !isRetreat)
                 {
                     if (Time.time > CombatMonster.lastTimeSpellUsed + CombatMonster.timeBetweenSpells)
-                    {
                         CombatMonster.TryCastSpell(distance);
-                    }
                 }
 
-                // --- GESTION DU DÉPLACEMENT (FUITE, APPROCHE, ARRÊT) ---
+                // ── Gestion du déplacement ───────────────────────────────────
                 if (agent.isActiveAndEnabled && !physicsMonster.IsPushing && !IsMovementBlocked())
                 {
-                    // FUITE : Si l'ennemi est trop près ET (on est un tireur OU on a peu de vie)
+                    // FUITE : trop près ET (doBackward ou low health)
                     if (distance < preferredDistance * CombatMonster.retreatThresholdRatio && (doBackward || isLowHealth))
                     {
                         isRetreat = true;
-                        agent.speed = isLowHealth ? originalSpeed : originalSpeed;
-                        
+                        agent.speed = originalSpeed / 2f;
+
+                        // Dash latéral si disponible
+                        if (dashBots != null && !dashBots.IsDashing)
+                        {
+                            if (dashBots.DashAwayFromTarget(TargetXform))
+                            {
+                                if (agent.isActiveAndEnabled) agent.ResetPath();
+                            }
+                        }
+
                         if (dodgeMonster != null)
                             dodgeMonster.TriggerSmartRetreat();
                         else
-                            RetreatFromTarget(10f); // Demande un grand saut en arrière
+                            RetreatFromTarget(10f);
                     }
-                    // APPROCHE : Si l'ennemi est trop loin
+                    // APPROCHE : trop loin
                     else if (distance > preferredDistance * CombatMonster.approachThresholdRatio)
                     {
                         if (!agent.isOnNavMesh)
-                        if (distance < preferredDistance * CombatMonster.retreatThresholdRatio && doBackward)
-                        {
-                            isRetreat = true;
-                                if (dashBots != null && !dashBots.IsDashing)
-                                {
-                                    if (dashBots.DashAwayFromTarget(TargetXform))
-                                    {
-                                        if (agent.isActiveAndEnabled)
-                                            agent.ResetPath();
-                                        return;
-                                    }
-                                }
-                            agent.speed = originalSpeed / 2f;
-                            if (dodgeMonster != null)
-                                dodgeMonster.TriggerSmartRetreat();
-                            else
-                                RetreatFromTarget();   // fallback si DodgeMonster absent
-                        }
-                        else if (distance > preferredDistance * CombatMonster.approachThresholdRatio)
                         {
                             StartCoroutine(AttemptRepositionToNavMesh());
                         }
@@ -316,7 +290,7 @@ public class Follow : NetworkBehaviour
                             isRetreat = false;
                         }
                     }
-                    // POSITION IDÉALE : On s'arrête et on tire
+                    // POSITION IDÉALE : on s'arrête
                     else
                     {
                         agent.ResetPath();
@@ -328,15 +302,13 @@ public class Follow : NetworkBehaviour
         }
 
         if (cibleur != null && TargetXform != null)
-        {
             cibleur.transform.LookAt(TargetXform);
-        }
 
         if (monsterReference == null)
             return;
 
-        // S'il est dans une position d'arrêt
-        if (monsterReference.playerStatistics.isBehindWho == null && !agent.enabled && !physicsMonster.IsPushing) agent.enabled = true;
+        if (monsterReference.playerStatistics.isBehindWho == null && !agent.enabled && !physicsMonster.IsPushing)
+            agent.enabled = true;
 
         if (IsMovementBlocked())
         {
@@ -355,7 +327,6 @@ public class Follow : NetworkBehaviour
                 cible = null;
             }
 #endif
-
             if (monsterReference.playerStatistics.playerStatData.health <= 0f && !isDead)
             {
                 isDead = true;
@@ -365,7 +336,6 @@ public class Follow : NetworkBehaviour
                 CapsuleCollider col = agent.GetComponent<CapsuleCollider>();
                 if (col != null) Destroy(col);
 #endif
-
                 if (Run.instance.CPUcontroller != null) Run.instance.CPUcontroller.zone.monsterNumber -= 1;
 #if UNITY_SERVER
                 NetworkManager.Destroy(monsterReference.gameObject, 2f);
@@ -388,9 +358,7 @@ public class Follow : NetworkBehaviour
                 {
                     stationaryTimer += Time.deltaTime;
                     if (stationaryTimer > 0.2f)
-                    {
                         animator.SetBool("isWalking", false);
-                    }
                 }
             }
 
@@ -420,102 +388,63 @@ public class Follow : NetworkBehaviour
         }
     }
 
-    // private void RetreatFromTarget(float retreatDistance = 2f)
-    // {
-    //     if (TargetXform == null || !agent.enabled || IsMovementBlocked()) return;
-
-    //     Vector3 targetDirection = agent.transform.position - TargetXform.position;
-    //     targetDirection.y = 0f;
-
-    //     if (targetDirection == Vector3.zero) return;
-
-    //     Vector3 retreatDirection = targetDirection.normalized;
-    //     Vector3 retreatTargetPosition = agent.transform.position + retreatDirection * retreatDistance;
-
-    //     if (NavMesh.SamplePosition(retreatTargetPosition, out NavMeshHit hit, 2f, NavMesh.AllAreas))
-    //     {
-    //         Debug.DrawLine(agent.transform.position, hit.position, Color.blue, 0.5f);
-    //         agent.SetDestination(hit.position);
-    //     }
-    //     else
-    //     {
-    //         Debug.LogWarning("No valid NavMesh point found for retreat.");
-    //     }
-    // }
-
     private void RetreatFromTarget(float retreatDistance = 10f)
     {
         if (TargetXform == null || !agent.enabled || IsMovementBlocked()) return;
 
-        // On calcule la direction depuis l'ENNEMI vers NOUS
         Vector3 fromTargetToMe = agent.transform.position - TargetXform.position;
         fromTargetToMe.y = 0f;
 
         if (fromTargetToMe == Vector3.zero) return;
 
-        Vector3 retreatDirection = fromTargetToMe.normalized;
-        
-        // Point de fuite = Position de l'ennemi + (Direction * (Distance actuelle + 10 mètres))
-        // Cette destination est beaucoup plus stable pour le NavMesh !
+        Vector3 retreatDirection    = fromTargetToMe.normalized;
         Vector3 retreatTargetPosition = TargetXform.position + retreatDirection * (fromTargetToMe.magnitude + retreatDistance);
 
         if (NavMesh.SamplePosition(retreatTargetPosition, out NavMeshHit hit, 5f, NavMesh.AllAreas))
-        {
             agent.SetDestination(hit.position);
-        }
     }
 
-    /// <summary>
-    /// À appeler depuis CombatMonster juste après avoir lancé un sort de charge
-    /// (MoveTowardsFromPoint / TriggerPush).
-    /// Surveille la distance et vide les pushes dès l'impact.
-    /// </summary>
     public void StartChargeImpactWatch(int spellIndex)
     {
         if (chargeImpactCoroutine != null)
             StopCoroutine(chargeImpactCoroutine);
         chargeImpactCoroutine = StartCoroutine(ChargeImpactRoutine(spellIndex));
     }
- 
+
     private IEnumerator ChargeImpactRoutine(int spellIndex)
     {
-        // Petite attente initiale pour laisser le push démarrer
-        yield return new WaitForSeconds(0.1f);
- 
+        yield return new WaitForSeconds(0.15f);
+
         float timeout = 3f;
         float elapsed = 0f;
- 
+
         while (elapsed < timeout)
         {
-            // Push terminé naturellement → rien à faire
             if (!physicsMonster.IsPushing)
             {
                 chargeImpactCoroutine = null;
                 yield break;
             }
- 
+
             if (TargetXform != null)
             {
                 float dist = Vector3.Distance(agent.transform.position, TargetXform.position);
                 if (dist <= chargeImpactDistance)
                 {
-                    // Annuler le sort de charge → stoppe le push côté serveur et clients
-                    #if UNITY_SERVER
-                    // 1. Stopper le push immédiatement
+#if UNITY_SERVER
                     physicsMonster.StopCharge();
-                    // 2. Annuler le sort pour nettoyer l'animation
                     if (monsterReference != null && monsterReference.playerShooting != null)
                         monsterReference.playerShooting.CancelSpell(spellIndex, true);
-                    #endif
+#endif
                     chargeImpactCoroutine = null;
                     yield break;
                 }
             }
- 
+
             elapsed += Time.deltaTime;
             yield return null;
         }
- 
+
         chargeImpactCoroutine = null;
     }
 
@@ -552,22 +481,13 @@ public class Follow : NetworkBehaviour
         if (activateFaceBack != null) StopCoroutine(activateFaceBack);
     }
 
-
-
 #if UNITY_SERVER
-	private void OnTriggerStay(Collider other)
-	{
-		if (monsterReference == null || monsterReference.playerStatistics == null)
-		{
-			return;
-		}
-		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters)
-		{
-			return;
-		}
-		if (activateFaceBack != null)
-			StopCoroutine(activateFaceBack);
-	}
+    private void OnTriggerStay(Collider other)
+    {
+        if (monsterReference == null || monsterReference.playerStatistics == null) return;
+        if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
+        if (activateFaceBack != null) StopCoroutine(activateFaceBack);
+    }
 #endif
 
     private void OnTriggerExit(Collider other)
@@ -593,67 +513,51 @@ public class Follow : NetworkBehaviour
 
     public void FindNearestTarget()
     {
-        PlayerReference bestTarget = null;
-        PlayerReference closestTarget = null;
+        PlayerReference bestTarget             = null;
+        PlayerReference closestTarget          = null;
         PlayerReference closestLowHealthTarget = null;
 
-        float minDistance = float.MaxValue;
+        float minDistance         = float.MaxValue;
         float minLowHealthDistance = float.MaxValue;
-
-        //PlayerReference nearestTarget = null;
-        float maxDistanceForLowHealth = 25f; // Portée max pour aller achever quelqu'un
+        float maxDistanceForLowHealth = 25f;
 
         PlayerReference[] candidates = FindObjectsOfType<PlayerReference>();
 
         foreach (var candidate in candidates)
         {
-            // 1. Sécurités de base
-            if (candidate.playerStatistics == null)
-             continue;
-            if (!candidate.playerStatistics.playerInstanciated)
-             continue;
-            if (candidate.playerStatistics.playerStatData.health <= 0f)
-             continue;
-            if (monsterReference != null && monsterReference == candidate)
-             continue;
+            if (candidate.playerStatistics == null)                                        continue;
+            if (!candidate.playerStatistics.playerInstanciated)                            continue;
+            if (candidate.playerStatistics.playerStatData.health <= 0f)                   continue;
+            if (monsterReference != null && monsterReference == candidate)                 continue;
             if (monsterReference != null && PlayerStatistics.AreAllies(monsterReference, candidate)) continue;
 
-            // 2. Calcul de la distance
-            float rawDistance = Vector3.Distance(candidate.transform.position, agent.transform.position);
+            float rawDistance    = Vector3.Distance(candidate.transform.position, agent.transform.position);
             float distanceForEval = rawDistance;
 
-            // 3. LE FOCUS : Si c'est déjà ma cible, je lui donne un "bonus" de proximité de 3 mètres
-            // Cela empêche le bot de changer de cible frénétiquement si deux guerriers avancent côte à côte
-            if (cible == candidate) 
-            {
+            if (cible == candidate)
                 distanceForEval -= 3f;
-            }
 
-            // Règle A : La cible globale la plus proche
             if (distanceForEval < minDistance)
             {
-                minDistance = distanceForEval;
+                minDistance   = distanceForEval;
                 closestTarget = candidate;
             }
 
-            // Règle B : Opportunité d'achèvement (Cible à moins de 25% de vie)
-            float maxHp = candidate.playerStatistics.playerStatData.maxHealth;
+            float maxHp     = candidate.playerStatistics.playerStatData.maxHealth;
             float currentHp = candidate.playerStatistics.playerStatData.health;
-            
+
             if (maxHp > 0 && (currentHp / maxHp) <= 0.25f && rawDistance <= maxDistanceForLowHealth)
             {
                 if (distanceForEval < minLowHealthDistance)
                 {
-                    minLowHealthDistance = distanceForEval;
+                    minLowHealthDistance   = distanceForEval;
                     closestLowHealthTarget = candidate;
                 }
             }
         }
 
-        // LE CHOIX : On prend le blessé en priorité, sinon on prend le plus proche
         bestTarget = closestLowHealthTarget != null ? closestLowHealthTarget : closestTarget;
 
-        // On applique la nouvelle cible si elle est différente de l'actuelle
         if (bestTarget != null && cible != bestTarget)
         {
             cible = bestTarget;
@@ -690,5 +594,4 @@ public class Follow : NetworkBehaviour
             monsterReference.playerStatistics.ParaSeconds > 0f ||
             physicsMonster.isInBlockMove;
     }
-
 }
