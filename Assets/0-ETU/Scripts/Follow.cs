@@ -42,6 +42,13 @@ public class Follow : NetworkBehaviour
     [HideInInspector, SerializeField] public Vector3 defaultPosition;
     [SerializeField] public float rotationSpeed = 6f;
 
+    [Header("=== Charge ===")]
+    [Tooltip("Distance (m) à laquelle la charge s'arrête quand le monstre touche sa cible")]
+    [SerializeField] private float chargeImpactDistance = 1.5f;
+ 
+    // Coroutine active de surveillance de charge
+    private Coroutine chargeImpactCoroutine;
+
     private Vector3 previousPosition;
     private Coroutine activateFaceBack;
     private float stationaryTimer = 0f;
@@ -458,6 +465,60 @@ public class Follow : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// À appeler depuis CombatMonster juste après avoir lancé un sort de charge
+    /// (MoveTowardsFromPoint / TriggerPush).
+    /// Surveille la distance et vide les pushes dès l'impact.
+    /// </summary>
+    public void StartChargeImpactWatch(int spellIndex)
+    {
+        if (chargeImpactCoroutine != null)
+            StopCoroutine(chargeImpactCoroutine);
+        chargeImpactCoroutine = StartCoroutine(ChargeImpactRoutine(spellIndex));
+    }
+ 
+    private IEnumerator ChargeImpactRoutine(int spellIndex)
+    {
+        // Petite attente initiale pour laisser le push démarrer
+        yield return new WaitForSeconds(0.1f);
+ 
+        float timeout = 3f;
+        float elapsed = 0f;
+ 
+        while (elapsed < timeout)
+        {
+            // Push terminé naturellement → rien à faire
+            if (!physicsMonster.IsPushing)
+            {
+                chargeImpactCoroutine = null;
+                yield break;
+            }
+ 
+            if (TargetXform != null)
+            {
+                float dist = Vector3.Distance(agent.transform.position, TargetXform.position);
+                if (dist <= chargeImpactDistance)
+                {
+                    // Annuler le sort de charge → stoppe le push côté serveur et clients
+                    #if UNITY_SERVER
+                    // 1. Stopper le push immédiatement
+                    physicsMonster.StopCharge();
+                    // 2. Annuler le sort pour nettoyer l'animation
+                    if (monsterReference != null && monsterReference.playerShooting != null)
+                        monsterReference.playerShooting.CancelSpell(spellIndex, true);
+                    #endif
+                    chargeImpactCoroutine = null;
+                    yield break;
+                }
+            }
+ 
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+ 
+        chargeImpactCoroutine = null;
+    }
+
     private void FaceTarget()
     {
         if (TargetXform == null) return;
@@ -496,10 +557,16 @@ public class Follow : NetworkBehaviour
 #if UNITY_SERVER
 	private void OnTriggerStay(Collider other)
 	{
-		if (monsterReference == null || monsterReference.playerStatistics == null) return;
-		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters) return;
-		if (activateFaceBack != null) StopCoroutine(activateFaceBack);
-
+		if (monsterReference == null || monsterReference.playerStatistics == null)
+		{
+			return;
+		}
+		if (other.gameObject.layer == 7 && monsterReference.playerStatistics.NotAttackMonsters)
+		{
+			return;
+		}
+		if (activateFaceBack != null)
+			StopCoroutine(activateFaceBack);
 	}
 #endif
 
@@ -532,6 +599,8 @@ public class Follow : NetworkBehaviour
 
         float minDistance = float.MaxValue;
         float minLowHealthDistance = float.MaxValue;
+
+        //PlayerReference nearestTarget = null;
         float maxDistanceForLowHealth = 25f; // Portée max pour aller achever quelqu'un
 
         PlayerReference[] candidates = FindObjectsOfType<PlayerReference>();
@@ -539,10 +608,14 @@ public class Follow : NetworkBehaviour
         foreach (var candidate in candidates)
         {
             // 1. Sécurités de base
-            if (candidate.playerStatistics == null) continue;
-            if (!candidate.playerStatistics.playerInstanciated) continue;
-            if (candidate.playerStatistics.playerStatData.health <= 0f) continue;
-            if (monsterReference != null && monsterReference == candidate) continue;
+            if (candidate.playerStatistics == null)
+             continue;
+            if (!candidate.playerStatistics.playerInstanciated)
+             continue;
+            if (candidate.playerStatistics.playerStatData.health <= 0f)
+             continue;
+            if (monsterReference != null && monsterReference == candidate)
+             continue;
             if (monsterReference != null && PlayerStatistics.AreAllies(monsterReference, candidate)) continue;
 
             // 2. Calcul de la distance
