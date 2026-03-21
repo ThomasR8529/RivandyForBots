@@ -3,8 +3,8 @@ const path = require("path");
 
 const dir = "Assets/0-ETU/Scripts";
 
-if (!fs.existsSync(baseDir)) {
-  console.error("❌ Dossier introuvable :", baseDir);
+if (!fs.existsSync(dir)) {
+  console.error("❌ Dossier introuvable :", dir);
   process.exit(1);
 }
 
